@@ -1,0 +1,59 @@
+# 编译产物
+*.hex
+*.elf
+*.bin
+*.axf
+*.o
+*.obj
+*.lst
+*.map
+*.crf
+*.htm
+*.sct
+*.bak
+*.tmp
+*.swp
+*.log
+*.dep
+*.plc
+*.d
+*.i
+*.ii
+
+# Keil MDK 专属
+Objects/
+Listings/
+*.uvguix*
+*.uvopt.bak
+*.uvprojx.bak
+__vm/
+*.iex
+*.crf
+*.tra
+*.pbx
+
+# STM32CubeIDE 专属
+Debug/
+Release/
+.settings/
+.DS_Store
+.launch
+.cproject.bak
+.project.bak
+*.cproject.save
+*.project.save
+
+# IDE 缓存（VSCode/CLion/IDEA）
+.vscode/
+.idea/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# 临时文件夹
+build/
+out/
+obj/
+temp/
