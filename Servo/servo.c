@@ -2,7 +2,7 @@
 
 int angle_to_pwm_270(float angle)
 {
-	// ÏŞÖÆ½Ç¶ÈÔÚ0µ½270¶ÈÖ®¼ä
+	// é™åˆ¶è§’åº¦åœ¨0åˆ°270åº¦ä¹‹é—´
 	if (angle < 0.0f)
 	{
 		angle = 0.0f;
@@ -12,9 +12,9 @@ int angle_to_pwm_270(float angle)
 		angle = 270.0f;
 	}
 
-	// ÏßĞÔ×ª»»¹«Ê½£ºPWM = (angle * 1000 / 270) + 250
+	// çº¿æ€§è½¬æ¢å…¬å¼ï¼šPWM = (angle * 1000 / 270) + 250
 	float pwm = (angle * 1000.0f / 270.0f) + 250.0f;
-	return (int)roundf(pwm); // ËÄÉáÎåÈëµ½ÕûÊı
+	return (int)roundf(pwm); // å››èˆäº”å…¥åˆ°æ•´æ•°
 }
 
 int angle_to_pwm_180(float angle)
@@ -30,7 +30,7 @@ int angle_to_pwm_180(float angle)
 	}
 
 	float pwm = (angle * 1000.0f / 180.0f) + 250.0f;
-	return (int)roundf(pwm); // ËÄÉáÎåÈëµ½ÕûÊı
+	return (int)roundf(pwm); // å››èˆäº”å…¥åˆ°æ•´æ•°
 }
 
 void test()
@@ -43,44 +43,46 @@ void test()
 	PWMXB = 16800;
 	PWMXA = 16800;
 
-	HAL_Delay(500);
-	
+	HAL_Delay(300);
+
 	PWMYB = 16800;
 	PWMYA = 5000;
-	HAL_Delay(700);
+	HAL_Delay(800);
 	PWMYB = 16800;
 	PWMYA = 16800;
 
 	// MotorX.Target = 0;
 	// MotorY.Target = 0;
 
-	TIM1->CCR2 = angle_to_pwm_180(180);
-	TIM1->CCR1 = angle_to_pwm_180(60);
+	Servo1(60);
+	Servo2(180);
 	HAL_Delay(1000);
 
-	TIM1->CCR1 = angle_to_pwm_180(60);
-	TIM1->CCR2 = angle_to_pwm_180(135);
+	Servo1(60);
+	Servo2(150);
 
 	HAL_Delay(2000);
 
-	TIM1->CCR1 = angle_to_pwm_180(0);
+	Servo1(0);
 	HAL_Delay(1000);
-	TIM1->CCR2 = angle_to_pwm_180(180);
+	Servo2(180);
 	HAL_Delay(1000);
-	
-	PWMXA = 16800;
-	PWMXB = 5000;
-	HAL_Delay(1000);
-	PWMXA = 16800;
-	PWMXB = 16800;
 
 	PWMYA = 16800;
 	PWMYB = 5000;
-	HAL_Delay(1000);
+	HAL_Delay(500);
 	PWMYA = 16800;
 	PWMYB = 16800;
-	
-	TIM1->CCR1 = angle_to_pwm_180(60);
+
+	HAL_Delay(300);
+
+	PWMXA = 16800;
+	PWMXB = 5000;
+	HAL_Delay(600);
+	PWMXA = 16800;
+	PWMXB = 16800;
+
+	Servo1(60);
 
 	// MotorX.Target = -10;
 	// MotorY.Target = -10;
@@ -89,9 +91,24 @@ void test()
 	// MotorY.Target = 0;
 }
 
+void Servo1(int degree)
+{
+	TIM1->CCR1 = angle_to_pwm_180(degree);
+}
+
+void Servo2(int degree)
+{
+	TIM1->CCR2 = angle_to_pwm_180(degree);
+}
+
+void Servo3(int degree)
+{
+	TIM1->CCR3 = angle_to_pwm_180(degree);
+}
+
 void ServoInit()
 {
-	// µç»úPWM¿ªÆô
+	// ç”µæœºPWMå¼€å¯
 	TIM1->CCR1 = angle_to_pwm_180(60);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);

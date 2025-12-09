@@ -96,7 +96,7 @@ int main(void)
   HAL_Delay(3000);
   init();
 
-  // HAL_Delay(500);
+  HAL_Delay(500);
   test();
   // MotorX.Target = -10;
   // MotorY.Target = -10;

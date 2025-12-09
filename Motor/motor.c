@@ -5,20 +5,20 @@ int i;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Instance == TIM6) // 200ms¶¨Ê±ÖÐ¶Ï
+	if (htim->Instance == TIM6) // 200mså®šæ—¶ä¸­æ–­
 	{
 
-		MotorX.Encoder = Read_Encoder(3); //===¶ÁÈ¡±àÂëÆ÷µÄÖµ							 //ÎªÁË±£Ö¤M·¨²âËÙµÄÊ±¼ä»ù×¼£¬Ê×ÏÈ¶ÁÈ¡±àÂëÆ÷Êý¾Ý
-		MotorY.Encoder = Read_Encoder(4); //===¶ÁÈ¡±àÂëÆ÷µÄÖµ	                                 //²îËÙÐ¡³µºÍÂÄ´øÐ¡³µÔË¶¯Ñ§·ÖÎö
-		Incremental_PID(&MotorX);		  //===ËÙ¶È±Õ»·¿ØÖÆ¼ÆËãµç»úA×îÖÕPWM  ²ÉÓÃÎ»ÖÃÊ½
-		Incremental_PID(&MotorY);		  //===PWMÏÞ·ù
-		Set_Pwm(&MotorX, &MotorY);
+		MotorX.Encoder = Read_Encoder(3); //===è¯»å–ç¼–ç å™¨çš„å€¼							 //ä¸ºäº†ä¿è¯Mæ³•æµ‹é€Ÿçš„æ—¶é—´åŸºå‡†ï¼Œé¦–å…ˆè¯»å–ç¼–ç å™¨æ•°æ®
+		MotorY.Encoder = Read_Encoder(4); //===è¯»å–ç¼–ç å™¨çš„å€¼	                                 //å·®é€Ÿå°è½¦å’Œå±¥å¸¦å°è½¦è¿åŠ¨å­¦åˆ†æž
+										  //		Incremental_PID(&MotorX);		  //===é€Ÿåº¦é—­çŽ¯æŽ§åˆ¶è®¡ç®—ç”µæœºAæœ€ç»ˆPWM  é‡‡ç”¨ä½ç½®å¼
+										  //		Incremental_PID(&MotorY);		  //===PWMé™å¹…
+										  //		Set_Pwm(&MotorX, &MotorY);
 	}
 }
 
 void MotorInit()
 {
-//	HAL_TIM_Base_Start_IT(&htim6);
+	//	HAL_TIM_Base_Start_IT(&htim6);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
@@ -27,14 +27,14 @@ void MotorInit()
 	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
 	MotorX.KP = 800.0;
-	MotorX.KI = 10.0; // ÔöÁ¿Ê½PIµÄKIÓ¦±ÈÎ»ÖÃÊ½Ð¡
-	MotorX.KD = 0.0;  // ³õÊ¼Î¢·ÖÏµÊýÉèÎª0
+	MotorX.KI = 10.0; // å¢žé‡å¼PIçš„KIåº”æ¯”ä½ç½®å¼å°
+	MotorX.KD = 0.0;  // åˆå§‹å¾®åˆ†ç³»æ•°è®¾ä¸º0
 
 	MotorY.KP = 800.0;
 	MotorY.KI = 10.0;
 	MotorY.KD = 0.0;
 
-	// ÐÂÔö³ÉÔ±³õÊ¼»¯
+	// æ–°å¢žæˆå‘˜åˆå§‹åŒ–
 	MotorX.prev_error = 0;
 	MotorX.prev_prev_error = 0;
 	MotorX.prev_output = 0;
@@ -77,14 +77,14 @@ void Set_Pwm(motor *Motor_X, motor *Motor_Y)
 
 void Incremental_PID(motor *_Motor)
 {
-	const float output_limit = 16800.0f; // Êä³öÏÞ·ùÖµ
+	const float output_limit = 16800.0f; // è¾“å‡ºé™å¹…å€¼
 
 	float current_error = _Motor->Target - _Motor->Encoder;
 
 	float delta_output =
-		_Motor->KP * (current_error - _Motor->prev_error)								   // ±ÈÀýÏî
-		+ _Motor->KI * current_error													   // »ý·ÖÏî
-		+ _Motor->KD * (current_error - 2 * _Motor->prev_error + _Motor->prev_prev_error); // Î¢·ÖÏî
+		_Motor->KP * (current_error - _Motor->prev_error)								   // æ¯”ä¾‹é¡¹
+		+ _Motor->KI * current_error													   // ç§¯åˆ†é¡¹
+		+ _Motor->KD * (current_error - 2 * _Motor->prev_error + _Motor->prev_prev_error); // å¾®åˆ†é¡¹
 
 	float new_output = _Motor->prev_output + delta_output;
 
@@ -93,9 +93,9 @@ void Incremental_PID(motor *_Motor)
 	if (new_output < -output_limit)
 		new_output = -output_limit;
 
-	_Motor->prev_prev_error = _Motor->prev_error; // ¸üÐÂÉÏÉÏ´ÎÎó²î
-	_Motor->prev_error = current_error;			  // ¸üÐÂÉÏ´ÎÎó²î
-	_Motor->prev_output = new_output;			  // ¸üÐÂÉÏ´ÎÊä³ö
+	_Motor->prev_prev_error = _Motor->prev_error; // æ›´æ–°ä¸Šä¸Šæ¬¡è¯¯å·®
+	_Motor->prev_error = current_error;			  // æ›´æ–°ä¸Šæ¬¡è¯¯å·®
+	_Motor->prev_output = new_output;			  // æ›´æ–°ä¸Šæ¬¡è¾“å‡º
 	_Motor->Motor = new_output;
 }
 

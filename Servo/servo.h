@@ -10,5 +10,8 @@ void ServoInit(void);
 int angle_to_pwm_270(float angle);
 int angle_to_pwm_180(float angle);
 void test(void);
+void Servo1(int degree);
+void Servo2(int degree);
+void Servo3(int degree);
 
 #endif
