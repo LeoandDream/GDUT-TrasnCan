@@ -33,63 +33,7 @@ int angle_to_pwm_180(float angle)
 	return (int)roundf(pwm); // 四舍五入到整数
 }
 
-void test()
-{
-	// MotorX.Target = 10;
-	// MotorY.Target = 10;
-	PWMXB = 16800;
-	PWMXA = 5000;
-	HAL_Delay(700);
-	PWMXB = 16800;
-	PWMXA = 16800;
 
-	HAL_Delay(300);
-
-	PWMYB = 16800;
-	PWMYA = 5000;
-	HAL_Delay(800);
-	PWMYB = 16800;
-	PWMYA = 16800;
-
-	// MotorX.Target = 0;
-	// MotorY.Target = 0;
-
-	Servo1(60);
-	Servo2(180);
-	HAL_Delay(1000);
-
-	Servo1(60);
-	Servo2(150);
-
-	HAL_Delay(2000);
-
-	Servo1(0);
-	HAL_Delay(1000);
-	Servo2(180);
-	HAL_Delay(1000);
-
-	PWMYA = 16800;
-	PWMYB = 5000;
-	HAL_Delay(500);
-	PWMYA = 16800;
-	PWMYB = 16800;
-
-	HAL_Delay(300);
-
-	PWMXA = 16800;
-	PWMXB = 5000;
-	HAL_Delay(600);
-	PWMXA = 16800;
-	PWMXB = 16800;
-
-	Servo1(60);
-
-	// MotorX.Target = -10;
-	// MotorY.Target = -10;
-	// HAL_Delay(1000);
-	// MotorX.Target = 0;
-	// MotorY.Target = 0;
-}
 
 void Servo1(int degree)
 {

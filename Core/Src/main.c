@@ -18,7 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -86,32 +88,22 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM6_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_TIM8_Init();
+  MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_Delay(3000);
-  init();
+  //  init();
 
-  HAL_Delay(500);
-  test();
-  // MotorX.Target = -10;
-  // MotorY.Target = -10;
-  // HAL_Delay(5000);
-
-  // MotorX.Target = 0;
-  // MotorY.Target = 0;
-  // HAL_Delay(5000);
-
-  // MotorX.Target = 10;
-  // MotorY.Target = 10;
-  // HAL_Delay(5000);
-
-  // MotorX.Target = 20;
-  // MotorY.Target = -10;
+  //  main_test();
+  //  motor_speed_loop_test();
 
   /* USER CODE END 2 */
 
@@ -120,7 +112,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+    // usart1_test();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

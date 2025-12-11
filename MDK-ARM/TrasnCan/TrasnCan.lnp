@@ -2,7 +2,9 @@
 "trasncan\startup_stm32f407xx.o"
 "trasncan\main.o"
 "trasncan\gpio.o"
+"trasncan\dma.o"
 "trasncan\tim.o"
+"trasncan\usart.o"
 "trasncan\stm32f4xx_it.o"
 "trasncan\stm32f4xx_hal_msp.o"
 "trasncan\stm32f4xx_hal_tim.o"
@@ -20,11 +22,14 @@
 "trasncan\stm32f4xx_hal_cortex.o"
 "trasncan\stm32f4xx_hal.o"
 "trasncan\stm32f4xx_hal_exti.o"
+"trasncan\stm32f4xx_hal_uart.o"
 "trasncan\system_stm32f4xx.o"
-"trasncan\init.o"
 "trasncan\motor.o"
 "trasncan\servo.o"
---strict --scatter "TrasnCan\TrasnCan.sct"
+"trasncan\host1_usart.o"
+"trasncan\test.o"
+"trasncan\init.o"
+--library_type=microlib --strict --scatter "TrasnCan\TrasnCan.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
 --list "TrasnCan.map" -o TrasnCan\TrasnCan.axf
