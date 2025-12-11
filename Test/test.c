@@ -58,7 +58,7 @@ void main_test()
     // MotorY.Target = 0;
 }
 
-void usart1_test()
+void usart1_Transmit_test()
 {
     int i0 = 0;
     uint8_t init_msg[] = "UART Init OK\r\n";
@@ -67,6 +67,16 @@ void usart1_test()
     if (i0++ == 1000)
         i0 = 0;
     HAL_Delay(1000);
+}
+
+void usart1_Receive_test()
+{
+    uint8_t Rx_Buff1[1];
+    if (HAL_UART_Receive(&huart1, Rx_Buff1, sizeof(Rx_Buff1), 1000) == HAL_OK)
+    {
+        HAL_UART_Transmit(&huart1, Rx_Buff1, sizeof(Rx_Buff1), 100);
+        printf("0\r\n");
+    }
 }
 
 void motor_speed_loop_test()

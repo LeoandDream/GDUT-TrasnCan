@@ -100,7 +100,7 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  //  init();
+  init();
 
   //  main_test();
   //  motor_speed_loop_test();
@@ -112,7 +112,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    // usart1_test();
+    // usart1_Transmit_test();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

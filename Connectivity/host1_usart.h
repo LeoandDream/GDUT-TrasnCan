@@ -19,15 +19,14 @@ typedef struct
     uint8_t checksum;           // 校验和
 } FrameData_t;
 
-// 帧最大长度（2+1+10*255+1=2554字节）
-#define FRAME_MAX_LEN 2554
+// 帧最大长度（采用每物体带校验位且无帧尾校验：2 + 1 + 10*255 = 2553 字节）
+// 每个物体占用字节数：1(type) + 2 + 2 + 2 + 2 = 9 字节，外加 1 字节的每物体校验
+#define FRAME_MAX_LEN 2553
 
 // 函数声明
 uint8_t CalculateChecksum(uint8_t *data, uint16_t len); // 计算校验和
 // uint16_t PackFrame(FrameData_t *frame, uint8_t *tx_buf);                   // 打包帧为字节流
 uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame); // 解析字节流为帧结构
-
-
 
 extern uint8_t rx_buf[FRAME_MAX_LEN];
 extern DMA_HandleTypeDef hdma_usart1_rx;

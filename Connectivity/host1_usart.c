@@ -1,6 +1,5 @@
 #include "main.h"
 
-
 int fputc(int ch, FILE *f)
 {
 
@@ -40,8 +39,8 @@ uint8_t CalculateChecksum(uint8_t *data, uint16_t len)
  */
 uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame)
 {
-    // 1. 校验最小长度（帧头2+N1+校验和1=4字节，无物体时最小长度）
-    if (rx_len < 4)
+    // 1. 校验最小长度（帧头2 + N(1) = 3 字节；无物体时最小长度）
+    if (rx_len < 3)
     {
         return 2; // 长度不足
     }
@@ -54,20 +53,31 @@ uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame)
 
     // 3. 提取物体数量N，校验总长度
     frame->obj_num = rx_buf[2];
-    uint16_t expect_len = 2 + 1 + (10 * frame->obj_num) + 1; // 帧头+N+物体数据+校验和
+    // 每个物体占用 9 字节数据 + 1 字节物体校验 = 10 字节
+    uint16_t expect_len = 2 + 1 + (10 * frame->obj_num) + 1; // 帧头+N+物体数据(含每物体校验)+帧校验和
     if (rx_len != expect_len)
     {
         return 2; // 实际长度≠预期长度
     }
 
-    // 4. 验证校验和（校验范围：帧头+N+物体数据）
-    uint8_t calc_checksum = CalculateChecksum(rx_buf, expect_len - 1);
-    if (calc_checksum != rx_buf[expect_len - 1])
+    // 4. 首先按每物体校验位逐个验证（每物体的校验仅覆盖该物体的 9 字节数据）
+    uint16_t idx_check = 3; // 跳过帧头(2)+N(1)
+    for (uint8_t i = 0; i < frame->obj_num; i++)
     {
-        return 3; // 校验和错误
+        // 每个物体的 9 字节数据起始下标
+        uint16_t obj_start = idx_check;
+        // 9 字节：type + x1(2) + y1(2) + x2(2) + y2(2)
+        // 物体校验位在第 10 字节位置
+        uint8_t calc_obj_checksum = CalculateChecksum(&rx_buf[obj_start], 9);
+        uint8_t obj_checksum = rx_buf[obj_start + 9];
+        if (calc_obj_checksum != obj_checksum)
+        {
+            return 3; // 物体校验错误（复用 3 = 校验和错误）
+        }
+        idx_check += 10; // 跳过当前物体的 10 字节（含校验）
     }
 
-    // 5. 解析物体数据
+    // 5. 解析物体数据并填充结构体（跳过每物体的校验字节）；不再进行整帧尾部校验
     uint16_t idx = 3; // 跳过帧头(2)+N(1)
     for (uint8_t i = 0; i < frame->obj_num; i++)
     {
@@ -75,8 +85,8 @@ uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame)
         frame->obj_list[i].type = rx_buf[idx++];
 
         // x1（大端解析：拆分高/低字节的idx操作）
-        uint8_t x1_high = rx_buf[idx++]; // 先取高字节，idx+1
-        uint8_t x1_low = rx_buf[idx++];  // 再取低字节，idx+1
+        uint8_t x1_high = rx_buf[idx++]; // 先取高字节
+        uint8_t x1_low = rx_buf[idx++];  // 再取低字节
         frame->obj_list[i].x1 = (x1_high << 8) | x1_low;
 
         // y1（大端解析：同理拆分）
@@ -93,12 +103,15 @@ uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame)
         uint8_t y2_high = rx_buf[idx++];
         uint8_t y2_low = rx_buf[idx++];
         frame->obj_list[i].y2 = (y2_high << 8) | y2_low;
+
+        // 跳过该物体的校验字节（已在前面校验过）
+        idx++;
     }
 
-    // 6. 填充帧头和校验和
+    // 6. 填充帧头（无尾部帧校验）
     frame->header[0] = 0xAA;
     frame->header[1] = 0xBB;
-    frame->checksum = rx_buf[expect_len - 1];
+    frame->checksum = 0; // 无整帧校验
     if (ui++ == 100)
         ui = 0;
     return 0; // 解析成功
@@ -116,16 +129,70 @@ void USART1_IRQHandler(void)
         __HAL_UART_CLEAR_IDLEFLAG(&huart1);
         HAL_DMA_Abort(&hdma_usart1_rx);
 
-        // 计算接收长度
-        rx_len = FRAME_MAX_LEN - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-
-        // 打印接收到的原始字节，便于在 PC 端与 MCU 输出比对
-        printf("[USART1] RX_LEN=%u\r\n", rx_len);
-        for (uint16_t i = 0; i < rx_len; i++)
+        // 读取 DMA 剩余计数并做短时稳定等待，避免主机分包导致的误触发 IDLE
+        uint32_t prev_cnt = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+        // 在 ISR 中只做非常短的轮询（上限迭代次数很小），以允许紧跟着到达的字节更新计数
+        // 这不是最优的非阻塞设计，但能显著降低因 USB 分包导致的帧被分割的概率
+        for (int wait = 0; wait < 200; ++wait)
         {
-            printf("%02X ", rx_buf[i]);
+            uint32_t cur_cnt = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+            if (cur_cnt == prev_cnt)
+                break; // 稳定了
+            prev_cnt = cur_cnt;
         }
-        printf("\r\n");
+
+        // 计算接收长度（使用稳定后的计数）
+        rx_len = FRAME_MAX_LEN - (uint16_t)__HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+
+        // 打印接收到的原始字节（按块格式化后一次性发送，避免逐字printf导致回显被切分）
+        {
+            const size_t OUTBUF_SIZE = 128;
+            char outbuf[OUTBUF_SIZE];
+            size_t outlen = 0;
+
+            // 先打印长度行
+            int n = snprintf(outbuf + outlen, OUTBUF_SIZE - outlen, "[USART1] RX_LEN=%u\r\n", rx_len);
+            if (n > 0)
+            {
+                outlen += (size_t)n;
+                if (outlen >= OUTBUF_SIZE)
+                    outlen = OUTBUF_SIZE - 1;
+            }
+            // 立即发送长度行（避免后续数据过大）
+            if (outlen > 0)
+            {
+                HAL_UART_Transmit(&huart1, (uint8_t *)outbuf, (uint16_t)outlen, 100);
+            }
+
+            // 逐字节格式化到缓冲区，缓冲满则发送
+            outlen = 0;
+            for (uint16_t i = 0; i < rx_len; i++)
+            {
+                // 每个字节需要至多 3 字符（"AA ")
+                if (OUTBUF_SIZE - outlen < 4)
+                {
+                    if (outlen > 0)
+                    {
+                        HAL_UART_Transmit(&huart1, (uint8_t *)outbuf, (uint16_t)outlen, 100);
+                        outlen = 0;
+                    }
+                }
+                int m = snprintf(outbuf + outlen, OUTBUF_SIZE - outlen, "%02X ", rx_buf[i]);
+                if (m > 0)
+                {
+                    outlen += (size_t)m;
+                    if (outlen >= OUTBUF_SIZE)
+                        outlen = OUTBUF_SIZE - 1;
+                }
+            }
+            // 发送剩余内容并换行
+            if (outlen > 0)
+            {
+                HAL_UART_Transmit(&huart1, (uint8_t *)outbuf, (uint16_t)outlen, 100);
+            }
+            const char nl[] = "\r\n";
+            HAL_UART_Transmit(&huart1, (uint8_t *)nl, sizeof(nl) - 1, 100);
+        }
 
         // 解析帧数据
         parse_result = UnpackFrame(rx_buf, rx_len, &recv_frame);
