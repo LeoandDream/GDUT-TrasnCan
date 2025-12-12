@@ -24,32 +24,30 @@ import sys
 import string
 
 FRAMES = {
-    # empty: header + N=0 (no objects, no tail checksum)
-    'empty': bytes.fromhex('AA BB 00'),
-    # one_obj: header + N + 9-byte object + per-object checksum
-    # object bytes: 01 00 64 00 C8 01 2C 01 90  -> checksum = 0xEB
-    'one_obj': bytes.fromhex('AA BB 01 01 00 64 00 C8 01 2C 01 90 EB'),
-    # two_obj: two objects, each 9 bytes + per-object checksum
-    # obj1 checksum = 0x65, obj2 checksum = 0x36
-    'two_obj': bytes.fromhex('AA BB 02 '
-                             '01 00 0A 00 14 00 1E 00 28 65 '
-                             '02 03 E8 07 D0 0B B8 0F A0 36'),
-    # bad_checksum: same as one_obj but object checksum intentionally wrong (00)
-    'bad_checksum': bytes.fromhex('AA BB 01 01 00 64 00 C8 01 2C 01 90 00'),
-    # bad_header: invalid header
-    'bad_header': bytes.fromhex('00 00 01 01 00 64 00 C8 01 2C 01 90 00'),
+    # empty: header + N=0 + tail checksum (frame checksum)
+    'empty': bytes.fromhex('AA BB 00 93'),
+    # one_obj: header + N + per-object 5-byte data (type + centerX little-endian + centerY little-endian) + tail checksum
+    # example: type=1, x=100 (0x0064 little-endian -> 64 00), y=200 (0x00C8 -> C8 00)
+    # checksum = sum(all previous bytes) & 0xFF = 0x93
+    'one_obj': bytes.fromhex('AA BB 01 01 64 00 C8 00 93'),
+    # two_obj: two objects, each 5 bytes, then tail checksum
+    # obj1: type=1 x=10->0A00 y=20->1400 ; obj2: type=2 x=1000->E803 y=2000->D007
+    # computed frame checksum = 0x4A
+    'two_obj': bytes.fromhex('AA BB 02 01 0A 00 14 00 02 E8 03 D0 07 4A'),
+    # bad_checksum: same as one_obj but frame checksum intentionally wrong (00)
+    'bad_checksum': bytes.fromhex('AA BB 01 01 64 00 C8 00 00'),
+    # bad_header: invalid header but correct length/format otherwise
+    'bad_header': bytes.fromhex('00 00 01 01 64 00 C8 00 00'),
 }
 
 
 def gen_frame(num: int) -> bytes:
-    """生成包含 num 个物体的帧（每物体 9 字节数据 + 1 字节物体校验，整帧无尾部校验）。
+    """生成包含 num 个物体的帧（每物体 5 字节：type + centerX(2 little-endian) + centerY(2 little-endian)，整帧尾部1字节校验）。
     生成规则（确定性，便于调试）：
       - type = i (1..num) & 0xFF
-      - x1 = i*10
-      - y1 = i*20
-      - x2 = i*30
-      - y2 = i*40
-    每物体校验 = 该物体 9 字节的简单相加低8位。
+      - centerX = i*10
+      - centerY = i*20
+    整帧校验 = sum(all previous bytes) & 0xFF，放在帧尾。
     返回完整的帧字节。
     """
     if num < 0 or num > 255:
@@ -61,29 +59,41 @@ def gen_frame(num: int) -> bytes:
     b.append(num & 0xFF)
     for i in range(1, num + 1):
         t = i & 0xFF
-        x1 = (i * 10) & 0xFFFF
-        y1 = (i * 20) & 0xFFFF
-        x2 = (i * 30) & 0xFFFF
-        y2 = (i * 40) & 0xFFFF
+        cx = (i * 10) & 0xFFFF
+        cy = (i * 20) & 0xFFFF
         # append type
         b.append(t)
-        # x1
-        b.append((x1 >> 8) & 0xFF)
-        b.append(x1 & 0xFF)
-        # y1
-        b.append((y1 >> 8) & 0xFF)
-        b.append(y1 & 0xFF)
-        # x2
-        b.append((x2 >> 8) & 0xFF)
-        b.append(x2 & 0xFF)
-        # y2
-        b.append((y2 >> 8) & 0xFF)
-        b.append(y2 & 0xFF)
-        # per-object checksum (9 bytes sum low8)
-        obj_sum = sum(b[-9:]) & 0xFF
-        b.append(obj_sum)
-    # no tail/frame checksum per new protocol
+        # centerX little-endian (low then high)
+        b.append(cx & 0xFF)
+        b.append((cx >> 8) & 0xFF)
+        # centerY little-endian
+        b.append(cy & 0xFF)
+        b.append((cy >> 8) & 0xFF)
+    # tail/frame checksum
+    tail = sum(b) & 0xFF
+    b.append(tail)
     return bytes(b)
+
+
+def gen_frame_center(num: int) -> bytes:
+    """生成每物体 5 字节的帧：type(1) + x_center(2) + y_center(2)，最后附加整帧校验和（低8位）。
+    使用确定性数值便于调试：type=i, x_center=i*10, y_center=i*20
+    校验和覆盖整个帧（包括帧头与数量字段）。
+    """
+    if num < 0 or num > 255:
+        raise ValueError('num must be 0..255')
+    import struct
+    packet = bytearray()
+    packet.extend(struct.pack('<BB', 0xAA, 0xBB))
+    packet.extend(struct.pack('<B', num & 0xFF))
+    for i in range(1, num + 1):
+        class_id = i & 0xFF
+        x_center = (i * 10) & 0xFFFF
+        y_center = (i * 20) & 0xFFFF
+        packet.extend(struct.pack('<BHH', class_id, x_center, y_center))
+    checksum = sum(packet) & 0xFF
+    packet.extend(struct.pack('<B', checksum))
+    return bytes(packet)
 
 
 def hex_with_spaces(b: bytes) -> str:
@@ -167,7 +177,8 @@ def main():
     parser.add_argument('--baud', type=int, default=115200, help='Baud rate')
     parser.add_argument('--list', action='store_true', help='List available example frames')
     parser.add_argument('--send', choices=list(FRAMES.keys()) + ['all'], help='Which frame to send')
-    parser.add_argument('--gen', type=int, help='Generate a frame with N objects (per-object checksum, no tail checksum)')
+    parser.add_argument('--gen', type=int, help='Generate a frame with N objects (use with --center5 for 5-byte/object + tail checksum)')
+    parser.add_argument('--center5', action='store_true', help='When used with --gen, generate 5-byte/object frames: type(1)+centerX(2)+centerY(2) and a tail checksum')
     parser.add_argument('--timeout', type=float, default=1.0, help='Time (s) to wait for MCU output after sending')
     parser.add_argument('--repeat', type=int, default=1, help='Repeat count')
     parser.add_argument('--interval', type=float, default=0.2, help='Interval between repeats (s)')
@@ -199,7 +210,11 @@ def main():
         # 优先使用 --gen 动态生成帧
         if args.gen is not None:
             gen_name = f'gen_{args.gen}'
-            gen_bytes = gen_frame(args.gen)
+            if args.center5:
+                gen_bytes = gen_frame_center(args.gen)
+                gen_name += '_center5'
+            else:
+                gen_bytes = gen_frame(args.gen)
             to_send = [(gen_name, gen_bytes)]
         else:
             if args.send == 'all':

@@ -51,61 +51,44 @@ uint8_t UnpackFrame(uint8_t *rx_buf, uint16_t rx_len, FrameData_t *frame)
         return 1; // 帧头错误
     }
 
-    // 3. 提取物体数量N，校验总长度
+    // 3. 提取物体数量N，校验总长度（发送端每物体 5B：type(1) + centerX(2 little-endian) + centerY(2 little-endian)）
     frame->obj_num = rx_buf[2];
-    // 每个物体占用 9 字节数据 + 1 字节物体校验 = 10 字节
-    uint16_t expect_len = 2 + 1 + (10 * frame->obj_num) + 1; // 帧头+N+物体数据(含每物体校验)+帧校验和
+    uint16_t expect_len = 2 + 1 + (5 * frame->obj_num) + 1; // 帧头+N+物体数据+帧校验和
     if (rx_len != expect_len)
     {
         return 2; // 实际长度≠预期长度
     }
 
-    // 4. 首先按每物体校验位逐个验证（每物体的校验仅覆盖该物体的 9 字节数据）
-    uint16_t idx_check = 3; // 跳过帧头(2)+N(1)
-    for (uint8_t i = 0; i < frame->obj_num; i++)
+    // 4. 整帧校验（发送端在帧尾放置一个字节 = sum(all previous bytes) & 0xFF）
+    uint8_t calc_checksum = CalculateChecksum(rx_buf, rx_len - 1);
+    uint8_t frame_checksum = rx_buf[rx_len - 1];
+    if (calc_checksum != frame_checksum)
     {
-        // 每个物体的 9 字节数据起始下标
-        uint16_t obj_start = idx_check;
-        // 9 字节：type + x1(2) + y1(2) + x2(2) + y2(2)
-        // 物体校验位在第 10 字节位置
-        uint8_t calc_obj_checksum = CalculateChecksum(&rx_buf[obj_start], 9);
-        uint8_t obj_checksum = rx_buf[obj_start + 9];
-        if (calc_obj_checksum != obj_checksum)
-        {
-            return 3; // 物体校验错误（复用 3 = 校验和错误）
-        }
-        idx_check += 10; // 跳过当前物体的 10 字节（含校验）
+        return 3; // 校验和错误
     }
 
-    // 5. 解析物体数据并填充结构体（跳过每物体的校验字节）；不再进行整帧尾部校验
+    // 5. 解析物体数据并填充结构体（每物体 5 字节，坐标为 little-endian）
     uint16_t idx = 3; // 跳过帧头(2)+N(1)
     for (uint8_t i = 0; i < frame->obj_num; i++)
     {
-        // 类别（单个idx++，无冲突）
+        // 类别
         frame->obj_list[i].type = rx_buf[idx++];
 
-        // x1（大端解析：拆分高/低字节的idx操作）
-        uint8_t x1_high = rx_buf[idx++]; // 先取高字节
-        uint8_t x1_low = rx_buf[idx++];  // 再取低字节
-        frame->obj_list[i].x1 = (x1_high << 8) | x1_low;
+        // centerX little-endian: low then high
+        uint8_t x_low = rx_buf[idx++];
+        uint8_t x_high = rx_buf[idx++];
+        uint16_t x_center = (uint16_t)x_low | ((uint16_t)x_high << 8);
 
-        // y1（大端解析：同理拆分）
-        uint8_t y1_high = rx_buf[idx++];
-        uint8_t y1_low = rx_buf[idx++];
-        frame->obj_list[i].y1 = (y1_high << 8) | y1_low;
+        // centerY little-endian
+        uint8_t y_low = rx_buf[idx++];
+        uint8_t y_high = rx_buf[idx++];
+        uint16_t y_center = (uint16_t)y_low | ((uint16_t)y_high << 8);
 
-        // x2（大端解析：同理拆分）
-        uint8_t x2_high = rx_buf[idx++];
-        uint8_t x2_low = rx_buf[idx++];
-        frame->obj_list[i].x2 = (x2_high << 8) | x2_low;
-
-        // y2（大端解析：同理拆分）
-        uint8_t y2_high = rx_buf[idx++];
-        uint8_t y2_low = rx_buf[idx++];
-        frame->obj_list[i].y2 = (y2_high << 8) | y2_low;
-
-        // 跳过该物体的校验字节（已在前面校验过）
-        idx++;
+        // 存储：如果结构体只支持 x1/y1..x2/y2，可把中心放到 x1/y1，x2/y2 置 0
+        frame->obj_list[i].x1 = x_center;
+        frame->obj_list[i].y1 = y_center;
+        frame->obj_list[i].x2 = 0;
+        frame->obj_list[i].y2 = 0;
     }
 
     // 6. 填充帧头（无尾部帧校验）
