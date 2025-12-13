@@ -81,40 +81,55 @@ void usart1_Receive_test()
 
 void motor_speed_loop_test()
 {
-    MotorX.Target = 10;
-    MotorY.Target = 10;
-    HAL_Delay(1000);
-    MotorX.Target = 0;
-    MotorY.Target = 0;
-
-    MotorX.Target = -10;
-    MotorY.Target = -10;
-    HAL_Delay(1000);
-    MotorX.Target = 0;
-    MotorY.Target = 0;
+    MotorX.Target_V = 10;
+    MotorY.Target_V = 10;
+    //    HAL_Delay(1000);
+    //    MotorX.Target_V = 0;
+    //    MotorY.Target_V = 0;
+    //    HAL_Delay(1000);
+    //    MotorX.Target_V = -10;
+    //    MotorY.Target_V = -10;
+    //    HAL_Delay(1000);
+    //    MotorX.Target_V = 0;
+    //    MotorY.Target_V = 0;
 }
 
 void motor_openloop_test()
 {
-    PWMXA = 5000;
-    PWMXB = 16800;
-    PWMYA = 5000;
-    PWMYB = 16800;
+    MotorX.Motor = 5000;
+    MotorY.Motor = 5000;
+    Set_Pwm(&MotorX, &MotorY);
     HAL_Delay(2000);
-    PWMXA = 16800;
-    PWMXB = 16800;
-    PWMYA = 16800;
-    PWMYB = 16800;
+    MotorX.Motor = 0;
+    MotorY.Motor = 0;
+    Set_Pwm(&MotorX, &MotorY);
 
     HAL_Delay(1000);
 
-    PWMXB = 5000;
-    PWMXA = 16800;
-    PWMYB = 5000;
-    PWMYA = 16800;
+    MotorX.Motor = -5000;
+    MotorY.Motor = -5000;
+    Set_Pwm(&MotorX, &MotorY);
     HAL_Delay(2000);
-    PWMXB = 16800;
-    PWMXA = 16800;
-    PWMYB = 16800;
-    PWMYA = 16800;
+    MotorX.Motor = 0;
+    MotorY.Motor = 0;
+    Set_Pwm(&MotorX, &MotorY);
+
+    HAL_Delay(1000);
 }
+
+void motor_position_loop_test()
+{
+    MotorX.Target_P = 10000;
+    MotorY.Target_P = 10000;
+    HAL_Delay(5000);
+    MotorX.Target_P = 0;
+    MotorY.Target_P = 0;
+    HAL_Delay(5000);
+    MotorX.Target_P = -10000;
+    MotorY.Target_P = -10000;
+    HAL_Delay(5000);
+    MotorX.Target_P = 0;
+    MotorY.Target_P = 0;
+    HAL_Delay(5000);
+}
+
