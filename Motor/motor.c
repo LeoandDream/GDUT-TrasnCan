@@ -7,29 +7,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM6) // 200hz定时中断
 	{
-		/* 读取编码器（增量） */
-		MotorX.Encoder = Read_Encoder(3); // 读取编码器增量
-		MotorY.Encoder = Read_Encoder(4);
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0)
-			x1++;
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7) == 0)
-			y1++;
-		if (x1 > 1000)
-			x1 = 0;
-		if (y1 > 1000)
-			y1 = 0;
-
-		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_12) == 0)
-			x2++;
-		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == 0)
-			y2++;
-		if (x2 > 1000)
-			x2 = 0;
-		if (y2 > 1000)
-			y2 = 0;
+				/* 读取编码器（增量） */
+		MotorX.Encoder = -Read_Encoder(3)*360.0*0.4375/(13*30); // 读取编码器增量 参数为特调
+		MotorY.Encoder = Read_Encoder(4)*360.0*0.3987/(13*30);
 		/* 累加位置（使用编码器增量累加） */
 		MotorX.Position += MotorX.Encoder;
 		MotorY.Position += MotorY.Encoder;
+		//printf("%f,%f,%f\r\n",MotorX.Position,MotorX.Target_P,MotorX.Motor);
 
 		/* 默认保留速度单环调用：如果需要位置-速度双环，可先在此处计算外环
 		   然后将 mode 改为 MODE_POSITION_DOUBLE 或调用 Incremental_PID 时传入不同模式 */
@@ -41,10 +25,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		// Incremental_PID(&MotorY, MODE_POSITION_DOUBLE);
 		/* 更新 PWM 输出 */
 		Set_Pwm(&MotorX, &MotorY);
-		if (i++ == 10000)
-		{
-			i = 0;
-		}
 	}
 }
 
@@ -61,12 +41,12 @@ void MotorInit()
 	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
-	MotorX.KP = 800.0;
-	MotorX.KI = 10.0; // 增量式PI的KI应比位置式小
+	MotorX.KP = 100.0; //800.0;
+	MotorX.KI = 1.0; //10.0; // 增量式PI的KI应比位置式小
 	MotorX.KD = 0.0;  // 初始微分系数设为0
 
-	MotorY.KP = 800.0;
-	MotorY.KI = 10.0;
+	MotorY.KP = 100.0;
+	MotorY.KI = 1.0;
 	MotorY.KD = 0.0;
 
 	// 新增成员初始化
@@ -78,21 +58,21 @@ void MotorInit()
 	MotorY.prev_prev_error = 0;
 	MotorY.prev_output = 0;
 
-	MotorX.Position = 0;
-	MotorX.Pos_KP = 0.0f;
-	MotorX.Pos_KI = 0.0f;
+	MotorX.Position = 71;  // 摄像头x初始位置设为71
+	MotorX.Pos_KP = 100.0f;
+	MotorX.Pos_KI = 0.1f;
 	MotorX.Pos_KD = 0.0f;
 	MotorX.pos_prev_error = 0;
 	MotorX.pos_integral = 0;
-	MotorX.MaxSpeed = 1000.0f;
+	MotorX.MaxSpeed = 3000.0f; //单位置环时需要调的值为output_limit
 
 	MotorY.Position = 0;
-	MotorY.Pos_KP = 0.0f;
-	MotorY.Pos_KI = 0.0f;
+	MotorY.Pos_KP = 100.0f;
+	MotorY.Pos_KI = 0.1f;
 	MotorY.Pos_KD = 0.0f;
 	MotorY.pos_prev_error = 0;
 	MotorY.pos_integral = 0;
-	MotorY.MaxSpeed = 1000.0f;
+	MotorY.MaxSpeed = 3000.0f;
 }
 
 /**
@@ -114,15 +94,16 @@ float my_abs(float x)
  */
 void Set_Pwm(motor *Motor_X, motor *Motor_Y)
 {
-	if (Motor_X->Motor > 0)
-	{
-		PWMXA = 15000;
-		PWMXB = (uint32_t)(16800 - my_abs(Motor_X->Motor));
-	}
-	else
+	if (Motor_X->Motor > 0)//反向旋转，迎合坐标系方向
 	{
 		PWMXA = (uint32_t)(16800 - my_abs(Motor_X->Motor));
 		PWMXB = 16800;
+	}
+	else
+	{
+		PWMXA = 16800;
+		PWMXB = (uint32_t)(16800 - my_abs(Motor_X->Motor));
+
 	}
 
 	if (Motor_Y->Motor > 0)
@@ -227,8 +208,28 @@ int Read_Encoder(int TIMX)
 		Encoder_TIM = (short)TIM4->CNT;
 		TIM4->CNT = 0;
 		break;
-		// default:
-		// 	Encoder_TIM = 0;
+	default:
+		Encoder_TIM = 0;
 	}
 	return Encoder_TIM;
+}
+
+/**************************************************************************
+功能：计算转数对应编码器脉冲数  （保证pid输入参数为脉冲，应用不同电机时不用再调pid参数）
+输入：num：转数；ppr：码盘数；ratio:减速比
+返回值：电机脉冲数
+**************************************************************************/
+long Num_Encoder_Cnt(float num,uint16_t ppr,float ratio)
+{
+    return (num*ratio*ppr);                               /*单倍频 */       
+}
+
+/**************************************************************************
+功能：计算转速对应编码器脉冲数
+输入：encoder_cnt：脉冲数；ppr：码盘数；ratio:减速比；cnt_time：计数时间（ms）
+返回值：电机脉冲数
+**************************************************************************/
+long Rpm_Encoder_Cnt(float rpm,uint16_t ppr,uint16_t ratio,uint16_t cnt_time)
+{
+	return (rpm*ratio*ppr)/(60*1000/cnt_time);            /*单倍频 */     
 }
