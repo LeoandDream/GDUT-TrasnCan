@@ -18,7 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -103,8 +103,9 @@ int main(void)
   init();
 
   //  main_test();
-  //  motor_speed_loop_test();
-
+  //  motor_openloop_test();
+  // motor_speed_loop_test();
+  motor_position_loop_test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -112,8 +113,9 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    // usart1_Transmit_test();
+
     /* USER CODE BEGIN 3 */
+    // usart1_Transmit_test();
   }
   /* USER CODE END 3 */
 }
