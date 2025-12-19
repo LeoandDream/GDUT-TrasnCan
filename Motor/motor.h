@@ -43,6 +43,8 @@ int Read_Encoder(int TIMX);
 void MotorInit(void);
 void Incremental_PID(motor *Motor);
 float my_abs(float x);
+long Num_Encoder_Cnt(float num,uint16_t ppr,float ratio);
+long Rpm_Encoder_Cnt(float rpm,uint16_t ppr,uint16_t ratio,uint16_t cnt_time);
 
 extern float Velocity_KP, Velocity_KI;
 extern float Motor_X, Motor_Y, Encoder_X, Encoder_Y, Target_X, Target_Y;
