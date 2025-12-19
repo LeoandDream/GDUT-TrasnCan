@@ -3,50 +3,62 @@
 motor MotorX, MotorY;
 int i, x1, y1, x2, y2;
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-	if (htim->Instance == TIM6) // 200hz定时中断
-	{
-		/* 读取编码器（增量） */
-		MotorX.Encoder = Read_Encoder(3); // 读取编码器增量
-		MotorY.Encoder = Read_Encoder(4);
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0)
-			x1++;
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7) == 0)
-			y1++;
-		if (x1 > 1000)
-			x1 = 0;
-		if (y1 > 1000)
-			y1 = 0;
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+// {
+// 	if (htim->Instance == TIM7)
+// 	{
+// 		HAL_IncTick();
+// 	}
+// 	//	if (htim->Instance == TIM6) // 200hz定时中断
+// 	//	{
+// 	//		/* 读取编码器（增量） */
+// 	//		MotorX.Encoder = Read_Encoder(3); // 读取编码器增量
+// 	//		MotorY.Encoder = Read_Encoder(4);
+// 	//		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0)
+// 	//			x1++;
+// 	//		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7) == 0)
+// 	//			y1++;
+// 	//		if (x1 > 1000)
+// 	//			x1 = 0;
+// 	//		if (y1 > 1000)
+// 	//			y1 = 0;
 
-		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_12) == 0)
-			x2++;
-		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == 0)
-			y2++;
-		if (x2 > 1000)
-			x2 = 0;
-		if (y2 > 1000)
-			y2 = 0;
-		/* 累加位置（使用编码器增量累加） */
-		MotorX.Position += MotorX.Encoder;
-		MotorY.Position += MotorY.Encoder;
+// 	//		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_12) == 0)
+// 	//			x2++;
+// 	//		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == 0)
+// 	//			y2++;
+// 	//		if (x2 > 1000)
+// 	//			x2 = 0;
+// 	//		if (y2 > 1000)
+// 	//			y2 = 0;
+// 	//		/* 累加位置（使用编码器增量累加） */
+// 	//		MotorX.Position += MotorX.Encoder;
+// 	//		MotorY.Position += MotorY.Encoder;
 
-		/* 默认保留速度单环调用：如果需要位置-速度双环，可先在此处计算外环
-		   然后将 mode 改为 MODE_POSITION_DOUBLE 或调用 Incremental_PID 时传入不同模式 */
-		// Incremental_PID(&MotorX, MODE_SPEED);
-		// Incremental_PID(&MotorY, MODE_SPEED);
-		Incremental_PID(&MotorX, MODE_POSITION_SINGLE);
-		Incremental_PID(&MotorY, MODE_POSITION_SINGLE);
-		// Incremental_PID(&MotorX, MODE_POSITION_DOUBLE);
-		// Incremental_PID(&MotorY, MODE_POSITION_DOUBLE);
-		/* 更新 PWM 输出 */
-		Set_Pwm(&MotorX, &MotorY);
-		if (i++ == 10000)
-		{
-			i = 0;
-		}
-	}
-}
+// 	//		/* 默认保留速度单环调用：如果需要位置-速度双环，可先在此处计算外环
+// 	//		   然后将 mode 改为 MODE_POSITION_DOUBLE 或调用 Incremental_PID 时传入不同模式 */
+// 	//		// MotorX.mode = MODE_SPEED;
+// 	//		// MotorY.mode = MODE_SPEED;
+// 	//		// Incremental_PID(&MotorX);
+// 	//		// Incremental_PID(&MotorY);
+
+// 	//		MotorX.mode = MODE_POSITION_SINGLE;
+// 	//		MotorY.mode = MODE_POSITION_SINGLE;
+// 	//		Incremental_PID(&MotorX);
+// 	//		Incremental_PID(&MotorY);
+
+// 	//		// MotorX.mode = MODE_POSITION_DOUBLE;
+// 	//		// MotorY.mode = MODE_POSITION_DOUBLE;
+// 	//		// Incremental_PID(&MotorX, MODE_POSITION_DOUBLE);
+// 	//		// Incremental_PID(&MotorY, MODE_POSITION_DOUBLE);
+// 	//		/* 更新 PWM 输出 */
+// 	//		Set_Pwm(&MotorX, &MotorY);
+// 	//		if (i++ == 10000)
+// 	//		{
+// 	//			i = 0;
+// 	//		}
+// 	//	}
+// }
 
 /**
  * @brief Initialize the motor control peripherals and parameters
@@ -61,14 +73,13 @@ void MotorInit()
 	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
-	MotorX.KP = 800.0;
-	MotorX.KI = 10.0; // 增量式PI的KI应比位置式小
-	MotorX.KD = 0.0;  // 初始微分系数设为0
+	MotorX.Vel_KP = 800.0;
+	MotorX.Vel_KI = 10.0; // 增量式PI的KI应比位置式小
+	MotorX.Vel_KD = 0.0;  // 初始微分系数设为0
 
-	MotorY.KP = 800.0;
-	MotorY.KI = 10.0;
-	MotorY.KD = 0.0;
-
+	MotorY.Vel_KP = 800.0;
+	MotorY.Vel_KI = 10.0;
+	MotorY.Vel_KD = 0.0;
 	// 新增成员初始化
 	MotorX.prev_error = 0;
 	MotorX.prev_prev_error = 0;
@@ -79,7 +90,7 @@ void MotorInit()
 	MotorY.prev_output = 0;
 
 	MotorX.Position = 0;
-	MotorX.Pos_KP = 0.0f;
+	MotorX.Pos_KP = 100.0f;
 	MotorX.Pos_KI = 0.0f;
 	MotorX.Pos_KD = 0.0f;
 	MotorX.pos_prev_error = 0;
@@ -87,7 +98,7 @@ void MotorInit()
 	MotorX.MaxSpeed = 1000.0f;
 
 	MotorY.Position = 0;
-	MotorY.Pos_KP = 0.0f;
+	MotorY.Pos_KP = 100.0f;
 	MotorY.Pos_KI = 0.0f;
 	MotorY.Pos_KD = 0.0f;
 	MotorY.pos_prev_error = 0;
@@ -116,7 +127,7 @@ void Set_Pwm(motor *Motor_X, motor *Motor_Y)
 {
 	if (Motor_X->Motor > 0)
 	{
-		PWMXA = 15000;
+		PWMXA = 16800;
 		PWMXB = (uint32_t)(16800 - my_abs(Motor_X->Motor));
 	}
 	else
@@ -146,13 +157,13 @@ void Set_Pwm(motor *Motor_X, motor *Motor_Y)
    - MODE_POSITION_DOUBLE: 先位置 PID 生成 Target_V，再走速度增量 PID
    - MODE_SPEED / MODE_SPEED_SINGLE: 仅速度增量 PID
  */
-void Incremental_PID(motor *_Motor, ControlMode mode)
+void Incremental_PID(motor *_Motor)
 {
-	const float output_limit = 16800.0f;
-
+	const float output_limit = 15000.0f;
 	/* 位置单环：直接用位置 PID 输出 PWM */
-	if (mode == MODE_POSITION_SINGLE)
+	if (_Motor->mode == MODE_POSITION_SINGLE)
 	{
+		float encoder_position_target = _Motor->Target_P * 13 * 30 / 360;
 		float pos_err = _Motor->Target_P - _Motor->Position;
 		_Motor->pos_integral += pos_err;
 		float pos_deriv = pos_err - _Motor->pos_prev_error;
@@ -173,7 +184,7 @@ void Incremental_PID(motor *_Motor, ControlMode mode)
 	}
 
 	/* 若为双环位置控制，先计算位置环输出速度命令并限幅 */
-	if (mode == MODE_POSITION_DOUBLE)
+	if (_Motor->mode == MODE_POSITION_DOUBLE)
 	{
 		float pos_err = _Motor->Target_P - _Motor->Position;
 		_Motor->pos_integral += pos_err;
@@ -196,7 +207,7 @@ void Incremental_PID(motor *_Motor, ControlMode mode)
 	/* 速度增量 PID（适用于 MODE_SPEED 与 MODE_POSITION_DOUBLE） */
 	float current_error = _Motor->Target_V - _Motor->Encoder;
 	float delta_output =
-		_Motor->KP * (current_error - _Motor->prev_error) + _Motor->KI * current_error + _Motor->KD * (current_error - 2 * _Motor->prev_error + _Motor->prev_prev_error);
+		_Motor->Vel_KP * (current_error - _Motor->prev_error) + _Motor->Vel_KI * current_error + _Motor->Vel_KD * (current_error - 2 * _Motor->prev_error + _Motor->prev_prev_error);
 	float new_output = _Motor->prev_output + delta_output;
 	if (new_output > output_limit)
 		new_output = output_limit;
@@ -221,10 +232,12 @@ int Read_Encoder(int TIMX)
 	{
 	case 3:
 		Encoder_TIM = (short)TIM3->CNT;
+		Encoder_TIM *= -1; // 根据接线方向调整正负
 		TIM3->CNT = 0;
 		break;
 	case 4:
 		Encoder_TIM = (short)TIM4->CNT;
+		Encoder_TIM *= -1; // 根据接线方向调整正负
 		TIM4->CNT = 0;
 		break;
 		// default:

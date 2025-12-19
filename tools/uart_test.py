@@ -1,262 +1,105 @@
 #!/usr/bin/env python3
 """
-uart_test.py
-自动化串口帧发送与 MCU 输出比对脚本（使用 pyserial）。
-用法示例：
-  python tools/uart_test.py --port COM5 --baud 115200 --list
-  python tools/uart_test.py --port COM5 --baud 115200 --send one_obj --timeout 1.0
-  python tools/uart_test.py --port COM5 --baud 115200 --send all --repeat 5 --interval 0.2
-
-脚本功能：
-- 内置若干示例帧（HEX）符合 MCU `UnpackFrame` 的格式
-- 发送指定帧后读取 MCU 串口输出（基于行读取），查找 MCU 打印的十六进制行与 RX_LEN
-- 打印比对结果（是否在 MCU 输出中找到相同字节序列）
-
-依赖： pyserial
+新版协议单目标帧压力测试脚本（含错误帧）
+自动批量发送不同class_id/x/y组合，支持回显检测和错误帧插入。
+用法：
+  python uart_test.py --port COM5 --baud 115200 --count 100 --interval 0.05 --error_rate 0.2
 """
 import argparse
-try:
-    import serial
-except Exception:
-    serial = None
-import time
+import struct
+import serial
 import sys
-import string
-
-FRAMES = {
-    # empty: header + N=0 + tail checksum (frame checksum)
-    'empty': bytes.fromhex('AA BB 00 93'),
-    # one_obj: header + N + per-object 5-byte data (type + centerX little-endian + centerY little-endian) + tail checksum
-    # example: type=1, x=100 (0x0064 little-endian -> 64 00), y=200 (0x00C8 -> C8 00)
-    # checksum = sum(all previous bytes) & 0xFF = 0x93
-    'one_obj': bytes.fromhex('AA BB 01 01 64 00 C8 00 93'),
-    # two_obj: two objects, each 5 bytes, then tail checksum
-    # obj1: type=1 x=10->0A00 y=20->1400 ; obj2: type=2 x=1000->E803 y=2000->D007
-    # computed frame checksum = 0x4A
-    'two_obj': bytes.fromhex('AA BB 02 01 0A 00 14 00 02 E8 03 D0 07 4A'),
-    # bad_checksum: same as one_obj but frame checksum intentionally wrong (00)
-    'bad_checksum': bytes.fromhex('AA BB 01 01 64 00 C8 00 00'),
-    # bad_header: invalid header but correct length/format otherwise
-    'bad_header': bytes.fromhex('00 00 01 01 64 00 C8 00 00'),
-}
+import time
+import random
 
 
-def gen_frame(num: int) -> bytes:
-    """生成包含 num 个物体的帧（每物体 5 字节：type + centerX(2 little-endian) + centerY(2 little-endian)，整帧尾部1字节校验）。
-    生成规则（确定性，便于调试）：
-      - type = i (1..num) & 0xFF
-      - centerX = i*10
-      - centerY = i*20
-    整帧校验 = sum(all previous bytes) & 0xFF，放在帧尾。
-    返回完整的帧字节。
-    """
-    if num < 0 or num > 255:
-        raise ValueError('num must be 0..255')
-    b = bytearray()
-    # header
-    b.extend([0xAA, 0xBB])
-    # obj num
-    b.append(num & 0xFF)
-    for i in range(1, num + 1):
-        t = i & 0xFF
-        cx = (i * 10) & 0xFFFF
-        cy = (i * 20) & 0xFFFF
-        # append type
-        b.append(t)
-        # centerX little-endian (low then high)
-        b.append(cx & 0xFF)
-        b.append((cx >> 8) & 0xFF)
-        # centerY little-endian
-        b.append(cy & 0xFF)
-        b.append((cy >> 8) & 0xFF)
-    # tail/frame checksum
-    tail = sum(b) & 0xFF
-    b.append(tail)
-    return bytes(b)
+def build_frame(class_id, x_middle, y_middle):
+    frame = bytearray()
+    frame.extend(struct.pack('<BB', 0xAA, 0xBB))
+    frame.append(class_id & 0xFF)
+    frame.extend(struct.pack('<H', x_middle & 0xFFFF))
+    frame.extend(struct.pack('<H', y_middle & 0xFFFF))
+    checksum = sum(frame) & 0xFF
+    frame.append(checksum)
+    return frame
 
 
-def gen_frame_center(num: int) -> bytes:
-    """生成每物体 5 字节的帧：type(1) + x_center(2) + y_center(2)，最后附加整帧校验和（低8位）。
-    使用确定性数值便于调试：type=i, x_center=i*10, y_center=i*20
-    校验和覆盖整个帧（包括帧头与数量字段）。
-    """
-    if num < 0 or num > 255:
-        raise ValueError('num must be 0..255')
-    import struct
-    packet = bytearray()
-    packet.extend(struct.pack('<BB', 0xAA, 0xBB))
-    packet.extend(struct.pack('<B', num & 0xFF))
-    for i in range(1, num + 1):
-        class_id = i & 0xFF
-        x_center = (i * 10) & 0xFFFF
-        y_center = (i * 20) & 0xFFFF
-        packet.extend(struct.pack('<BHH', class_id, x_center, y_center))
-    checksum = sum(packet) & 0xFF
-    packet.extend(struct.pack('<B', checksum))
-    return bytes(packet)
-
-
-def hex_with_spaces(b: bytes) -> str:
-    return ' '.join(f'{x:02X}' for x in b)
-
-
-def send_and_capture(ser, frame_name: str, frame: bytes, timeout: float) -> dict:
-    """发送 frame，然后在 timeout 时间内读取 MCU 输出（按行），返回比对信息。"""
-    result = {
-        'frame_name': frame_name,
-        'sent_hex': hex_with_spaces(frame),
-        'found_hex_dump': False,
-        'rx_len_lines': [],
-        'reconstructed_hex': '',
-        'matched_bytes': 0,
-    }
-
-    ser.reset_input_buffer()
-    ser.reset_output_buffer()
-
-    # 写入并报告实际写入长度（便于诊断）
-    written = ser.write(frame)
-    ser.flush()
-    result['written'] = written
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            line = ser.readline()
-        except Exception:
-            break
-        if not line:
-            continue
-
-        try:
-            s = line.decode('utf-8', errors='replace').strip()
-        except Exception:
-            s = repr(line)
-
-        # 检查是否包含我们关心的信息行（RX_LEN / 接收物体数量 / 日志前缀）
-        if 'RX_LEN' in s or '接收物体数量' in s or s.startswith('[USART1]'):
-            result['rx_len_lines'].append(s)
-
-        # 如果这一行看起来像十六进制字节序列，则从中抽取全部字节用于重建连续回显
-        parts = s.split()
-        for tok in parts:
-            if len(tok) == 2 and all(c in string.hexdigits for c in tok):
-                # 将 token 作为十六进制字节加入重建缓冲
-                try:
-                    result.setdefault('_recon_bytes', bytearray()).append(int(tok, 16))
-                except Exception:
-                    pass
-        # 同时检查行中是否包含完整的发送帧文本（作为快速判定）
-        if result['sent_hex'] in s.replace('  ', ' '):
-            result['found_hex_dump'] = True
-
-    # 将重建出的字节流转为十六进制并执行子序列匹配
-    recon_bytes = result.get('_recon_bytes', bytearray())
-    if recon_bytes:
-        recon_hex = hex_with_spaces(bytes(recon_bytes))
-        result['reconstructed_hex'] = recon_hex
-        # 子序列匹配
-        sent_bytes = list(frame)
-        i = 0
-        for b in recon_bytes:
-            if b == sent_bytes[i]:
-                i += 1
-                if i >= len(sent_bytes):
-                    break
-        result['matched_bytes'] = i
-    # 清理临时字段
-    if '_recon_bytes' in result:
-        del result['_recon_bytes']
-
-    return result
+def build_error_frame(frame, error_type='checksum'):
+    f = bytearray(frame)
+    if error_type == 'checksum':
+        # 故意破坏校验和
+        f[-1] = (f[-1] + random.randint(1, 255)) & 0xFF
+    elif error_type == 'header':
+        # 故意破坏帧头
+        f[0] = 0x00
+    elif error_type == 'length':
+        # 缩短帧长度
+        f = f[:-1]
+    return f
 
 
 def main():
-    parser = argparse.ArgumentParser(description='UART frame sender and MCU output comparator')
+    parser = argparse.ArgumentParser(description='Pressure test: send many frames with different data, including error frames')
     parser.add_argument('--port', required=True, help='Serial port, e.g. COM5')
     parser.add_argument('--baud', type=int, default=115200, help='Baud rate')
-    parser.add_argument('--list', action='store_true', help='List available example frames')
-    parser.add_argument('--send', choices=list(FRAMES.keys()) + ['all'], help='Which frame to send')
-    parser.add_argument('--gen', type=int, help='Generate a frame with N objects (use with --center5 for 5-byte/object + tail checksum)')
-    parser.add_argument('--center5', action='store_true', help='When used with --gen, generate 5-byte/object frames: type(1)+centerX(2)+centerY(2) and a tail checksum')
-    parser.add_argument('--timeout', type=float, default=1.0, help='Time (s) to wait for MCU output after sending')
-    parser.add_argument('--repeat', type=int, default=1, help='Repeat count')
-    parser.add_argument('--interval', type=float, default=0.2, help='Interval between repeats (s)')
-
+    parser.add_argument('--count', type=int, default=10, help='How many frames to send')
+    parser.add_argument('--interval', type=float, default=0.05, help='Interval between frames (s)')
+    parser.add_argument('--timeout', type=float, default=0.5, help='Read echo timeout (s)')
+    parser.add_argument('--random', action='store_true', help='Randomize data for each frame')
+    parser.add_argument('--error_rate', type=float, default=0.2, help='Ratio of error frames (0~1)')
+    parser.add_argument('--error_types', type=str, default='checksum,header,length', help='Comma separated error types: checksum,header,length')
     args = parser.parse_args()
-
-    if args.list:
-        print('Available frames:')
-        for k, v in FRAMES.items():
-            print(f"- {k}: {hex_with_spaces(v)}")
-        return
-
-    if not args.send and args.gen is None:
-        parser.print_help()
-        return
-
-    if serial is None:
-        print('pyserial is not installed. Install with: pip install pyserial')
-        sys.exit(2)
+    error_types = [e.strip() for e in args.error_types.split(',') if e.strip()]
 
     try:
         ser = serial.Serial(args.port, args.baud, timeout=0.1)
     except Exception as e:
         print('Failed to open serial port:', e)
-        sys.exit(2)
+        sys.exit(1)
 
     try:
-        to_send = []
-        # 优先使用 --gen 动态生成帧
-        if args.gen is not None:
-            gen_name = f'gen_{args.gen}'
-            if args.center5:
-                gen_bytes = gen_frame_center(args.gen)
-                gen_name += '_center5'
+        for i in range(args.count):
+            if args.random:
+                class_id = random.randint(0, 10)
+                x = random.randint(0, 640)
+                y = random.randint(0, 480)
             else:
-                gen_bytes = gen_frame(args.gen)
-            to_send = [(gen_name, gen_bytes)]
-        else:
-            if args.send == 'all':
-                to_send = list(FRAMES.items())
+                class_id = i % 10
+                x = 100 + (i * 5) % 540
+                y = 50 + (i * 3) % 400
+            frame = build_frame(class_id, x, y)
+            is_error = random.random() < args.error_rate
+            if is_error:
+                etype = random.choice(error_types)
+                frame_to_send = build_error_frame(frame, etype)
+                print(f'Send {i+1}/{args.count} [ERROR-{etype}]:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y}')
             else:
-                to_send = [(args.send, FRAMES[args.send])]
-
-        for name, frame in to_send:
-            for i in range(args.repeat):
-                print(f'[{time.strftime("%H:%M:%S")}] Sending "{name}" ({i+1}/{args.repeat}): {hex_with_spaces(frame)}')
-                res = send_and_capture(ser, name, frame, args.timeout)
-                # 打印期望校验和与发送帧尾校验字节，便于对比
-                if res.get('expected_checksum') is not None:
-                    sent_chk = frame[-1]
-                    print(f"  -> Expected checksum: 0x{res['expected_checksum']:02X}, Sent checksum byte: 0x{sent_chk:02X}")
-                print('  -> Found hex dump in MCU output:', res['found_hex_dump'])
-                if res['rx_len_lines']:
-                    print('  -> MCU info lines:')
-                    for L in res['rx_len_lines']:
-                        print('     ', L)
-                else:
-                    print('  -> No RX_LEN or MCU info lines found')
-
-                # Optionally print raw lines for debugging (use safe access)
-                raw_lines = res.get('raw_lines')
-                if raw_lines:
-                    print('  -> Raw MCU output lines:')
-                    for L in raw_lines:
-                        print('     ', L)
-                raw_lines_hex = res.get('raw_lines_hex')
-                if raw_lines_hex:
-                    print('  -> Raw MCU output lines (hex):')
-                    for L in raw_lines_hex:
-                        print('     ', L)
-                if res.get('reconstructed_hex'):
-                    print('  -> Reconstructed continuous hex from lines:')
-                    print('     ', res['reconstructed_hex'])
-                    print('  -> Matched bytes (in-order, possibly with gaps):', res.get('matched_bytes', 0), '/', len(frame))
-
-                if i < args.repeat - 1:
-                    time.sleep(args.interval)
-
+                frame_to_send = frame
+                print(f'Send {i+1}/{args.count}:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y}')
+            ser.write(frame_to_send)
+            ser.flush()
+            # 读取回显
+            deadline = time.time() + args.timeout
+            lines = []
+            while time.time() < deadline:
+                try:
+                    line = ser.readline()
+                except Exception:
+                    break
+                if not line:
+                    continue
+                try:
+                    s = line.decode('utf-8', errors='replace').strip()
+                except Exception:
+                    s = repr(line)
+                if s:
+                    lines.append(s)
+            if lines:
+                for l in lines:
+                    print(l)
+            else:
+                print('MCU无输出或超时')
+            time.sleep(args.interval)
     finally:
         ser.close()
 
