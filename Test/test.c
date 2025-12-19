@@ -62,7 +62,8 @@ void usart1_Transmit_test()
 {
     int i0 = 0;
     uint8_t init_msg[] = "UART Init OK\r\n";
-    HAL_UART_Transmit(&huart1, init_msg, sizeof(init_msg) - 1, 100);
+    HAL_UART_Transmit_DMA(&huart1, init_msg, sizeof(init_msg) - 1);
+    // HAL_UART_Transmit(&huart1, init_msg, sizeof(init_msg) - 1, 100);
     printf("this is printf \r\n");
     if (i0++ == 1000)
         i0 = 0;
@@ -130,4 +131,3 @@ void motor_position_loop_test()
 		HAL_Delay(4000);
 		MotorX.Target_P = 500;
 }
-
