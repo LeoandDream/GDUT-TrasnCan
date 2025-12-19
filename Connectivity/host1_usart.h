@@ -16,8 +16,17 @@ typedef struct
     uint8_t checksum;  // 校验和
 } FrameData_t;
 
-// 帧最大长度（每物体5字节+帧尾校验：2+1+5*255+1=1278）
-#define FRAME_MAX_LEN 1278
+typedef enum
+{
+    GRIPPER_STATE_CLAMP,           // 夹取
+    GRIPPER_STATE_RELEASE,         // 释放
+    GRIPPER_STATE_MOVE_TO_GRAB,    // 抓取阶段移动
+    GRIPPER_STATE_MOVE_TO_RELEASE, // 释放阶段移动
+    GRIPPER_STATE_RESET,           // 复位
+    GRIPPER_STATE_STOP             // 停机
+} Gripper_State;
+
+#define FRAME_MAX_LEN 10
 
 // 函数声明
 uint8_t CalculateChecksum(uint8_t *data, uint16_t len); // 计算校验和
@@ -28,5 +37,6 @@ void Usart1Task_Run(void);
 extern uint8_t host1_rx_buf[FRAME_MAX_LEN];
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
+extern Gripper_State gripper_state;
 
 #endif

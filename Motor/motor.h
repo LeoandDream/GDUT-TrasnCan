@@ -9,10 +9,11 @@
 
 typedef enum
 {
-	MODE_SPEED = 0,
 	MODE_SPEED_SINGLE,
 	MODE_POSITION_SINGLE, // 位置单环（位置直接输出到PWM）——保留
-	MODE_POSITION_DOUBLE  // 位置-速度双环（推荐）
+	MODE_POSITION_DOUBLE, // 位置-速度双环（推荐）
+	MODE_STOP,			  // 停止
+	MODE_RESET,			  // 复位
 } ControlMode;
 
 typedef struct
@@ -43,11 +44,10 @@ int Read_Encoder(int TIMX);
 void MotorInit(void);
 void Incremental_PID(motor *Motor);
 float my_abs(float x);
-long Num_Encoder_Cnt(float num,uint16_t ppr,float ratio);
-long Rpm_Encoder_Cnt(float rpm,uint16_t ppr,uint16_t ratio,uint16_t cnt_time);
+long Num_Encoder_Cnt(float num, uint16_t ppr, float ratio);
+long Rpm_Encoder_Cnt(float rpm, uint16_t ppr, uint16_t ratio, uint16_t cnt_time);
 
-extern float Velocity_KP, Velocity_KI;
-extern float Motor_X, Motor_Y, Encoder_X, Encoder_Y, Target_X, Target_Y;
+extern uint16_t Target_X, Target_Y;
 extern motor MotorX, MotorY;
 
 #endif

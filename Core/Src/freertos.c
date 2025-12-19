@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+Gripper_State gripper_state = GRIPPER_STATE_STOP;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -193,8 +193,23 @@ void Motor_Task_Function(void *argument)
     MotorY.Encoder = Read_Encoder(4);
     MotorX.Position += MotorX.Encoder;
     MotorY.Position += MotorY.Encoder;
-    Incremental_PID(&MotorX);
-    Incremental_PID(&MotorY);
+
+    if (MotorX.mode == MODE_RESET)
+      MotorX.Motor = 5000;
+    else
+      Incremental_PID(&MotorX);
+
+    if (MotorY.mode == MODE_RESET)
+      MotorY.Motor = 5000;
+    else
+      Incremental_PID(&MotorY);
+
+    if (MotorX.mode == MODE_STOP)
+      MotorX.Motor = 0;
+
+    if (MotorY.mode == MODE_STOP)
+      MotorY.Motor = 0;
+
     Set_Pwm(&MotorX, &MotorY);
     osDelay(1);
   }
@@ -213,27 +228,95 @@ void Gripper_Task_Function(void *argument)
 {
   for (;;)
   {
-    // if (osMutexAcquire(Gripper_StateHandle, 0) == osOK)
-    // {
-    //   // switch (Gripper_State)
-    //   // {
-    //   // case constant expression:
-    //   //   /* code */
-    //   //   break;
+    if (osMutexAcquire(Gripper_StateHandle, 0) == osOK)
+    {
 
-    //   // default:
-    //   //   break;
-    //   // }
-    //   printf("Gripper task part1 running\r\n");
-    //   osDelay(500);
-    //   printf("Gripper task part2 running\r\n");
-    //   osDelay(500);
-    //   printf("Gripper task part3 running\r\n");
-    //   osDelay(1000);
-    //   printf("Gripper task part4 running\r\n");
-    //   osMutexRelease(Gripper_StateHandle);
-    // }
-    // osDelay(1);
+      switch (gripper_state)
+      {
+      case GRIPPER_STATE_MOVE_TO_GRAB:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_MOVE_TO_GRAB running\r\n");
+        osMutexRelease(Print_MutexHandle);
+        MotorX.mode = MODE_POSITION_SINGLE;
+        MotorY.mode = MODE_POSITION_SINGLE;
+        MotorX.Target_P = Target_X;
+        MotorY.Target_P = Target_Y;
+        osDelay(2000);
+        gripper_state = GRIPPER_STATE_CLAMP;
+        break;
+      }
+      case GRIPPER_STATE_CLAMP:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_CLAMP running\r\n");
+        osMutexRelease(Print_MutexHandle);
+        MotorX.mode = MODE_STOP;
+        MotorY.mode = MODE_STOP;
+        Servo1(60);
+        Servo2(180);
+        osDelay(1000);
+
+        Servo1(60);
+        Servo2(150);
+        osDelay(1000);
+        gripper_state = GRIPPER_STATE_MOVE_TO_RELEASE;
+        break;
+      }
+
+      case GRIPPER_STATE_MOVE_TO_RELEASE:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_MOVE_TO_RELEASE running\r\n");
+        osMutexRelease(Print_MutexHandle);
+        MotorX.mode = MODE_POSITION_SINGLE;
+        MotorY.mode = MODE_POSITION_SINGLE;
+        MotorX.Target_P = 71;
+        MotorY.Target_P = 0;
+        gripper_state = GRIPPER_STATE_RESET;
+        osDelay(2000);
+        break;
+      }
+
+      case GRIPPER_STATE_RELEASE:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_RELEASE running\r\n");
+        osMutexRelease(Print_MutexHandle);
+        Servo1(0);
+        osDelay(1000);
+        Servo2(180);
+        osDelay(1000);
+        gripper_state = GRIPPER_STATE_RESET;
+        break;
+      }
+      case GRIPPER_STATE_RESET:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_RESET running\r\n");
+        osMutexRelease(Print_MutexHandle);
+        MotorX.mode = MODE_RESET;
+        MotorY.mode = MODE_RESET;
+        osDelay(2000);
+        MotorX.mode = MODE_STOP;
+        MotorY.mode = MODE_STOP;
+        gripper_state = GRIPPER_STATE_STOP;
+        break;
+      }
+      case GRIPPER_STATE_STOP:
+      {
+        osMutexAcquire(Print_MutexHandle, osWaitForever);
+        printf("GRIPPER_STATE_STOP\r\n");
+        osMutexRelease(Print_MutexHandle);
+        (void)0;
+        osDelay(500);
+      }
+      default:
+        break;
+      }
+      osMutexRelease(Gripper_StateHandle);
+    }
+    osDelay(1);
   }
   /* USER CODE END Gripper_Task_Function */
 }

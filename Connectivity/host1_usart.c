@@ -1,6 +1,6 @@
 #include "main.h"
 
-#define DEBUG_USART1 1
+#define DEBUG_USART1 0
 uint8_t isGrabbing = 0;
 
 // 全局变量
@@ -60,7 +60,7 @@ uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *f
 void USART1_IRQHandler(void)
 {
     osMutexAcquire(Gripper_StateHandle, osWaitForever);
-    if (isGrabbing == 0)
+    if (gripper_state == GRIPPER_STATE_STOP)
     {
         HAL_UART_IRQHandler(&huart1);
         if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET)
@@ -74,7 +74,6 @@ void USART1_IRQHandler(void)
             host1_rx_len = FRAME_MAX_LEN - (uint16_t)__HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
             host1_rx_data_ready = 1; // 设置数据就绪标志
             // 不要在此处重启DMA，等任务处理完再重启
-            isGrabbing = 1;
         }
     }
     osMutexRelease(Gripper_StateHandle);
@@ -144,16 +143,11 @@ void Usart1Task_Run(void)
         {
             // 解析成功，处理recv_frame中的物体数据
             // 坐标线性转换并赋值到 MotorX/ MotorY
-            float h1 = 590.0f, h2 = 480.0f;
-            float x_raw = host1_recv_frame.obj.x;
-            float y_raw = host1_recv_frame.obj.y;
-            float x = (x_raw - 70.0f) / 520.0f * h1;
-            float y = y_raw / 480.0f * h2;
-            extern motor MotorX, MotorY;
-            MotorX.Target_P = x;
-            MotorY.Target_P = y;
-            // printf("x_raw =%d\r\n", host1_recv_frame.obj.x);
-            // printf("y_raw =%d\r\n", host1_recv_frame.obj.y);
+            Target_X = host1_recv_frame.obj.x;
+            Target_Y = host1_recv_frame.obj.y;
+            osMutexAcquire(Gripper_StateHandle, osWaitForever);
+            gripper_state = GRIPPER_STATE_MOVE_TO_GRAB;
+            osMutexRelease(Gripper_StateHandle);
 #if DEBUG_USART1
             osMutexAcquire(Print_MutexHandle, osWaitForever);
             printf("x_raw =%d\r\n", host1_recv_frame.obj.x);
@@ -185,9 +179,6 @@ void Usart1Task_Run(void)
         // 无论解析成功与否都重启DMA，保证后续能继续接收
         HAL_UART_Receive_DMA(&huart1, host1_rx_buf, FRAME_MAX_LEN);
     }
-    osMutexAcquire(Gripper_StateHandle, osWaitForever);
-    isGrabbing = 0;
-    osMutexRelease(Gripper_StateHandle);
 }
 
 // DMA发送环形缓冲区及状态
