@@ -36,7 +36,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
-#define DEBUG_GRIPPER 0
+#define DEBUG_GRIPPER 1
+#define DEBUG_OS 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,28 +53,28 @@ Gripper_State gripper_state = GRIPPER_STATE_STOP;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
     .name = "defaultTask",
-    .stack_size = 128 * 4,
+    .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for Motor_Task */
 osThreadId_t Motor_TaskHandle;
 const osThreadAttr_t Motor_Task_attributes = {
     .name = "Motor_Task",
-    .stack_size = 128 * 4,
+    .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for Gripper_Task */
 osThreadId_t Gripper_TaskHandle;
 const osThreadAttr_t Gripper_Task_attributes = {
     .name = "Gripper_Task",
-    .stack_size = 128 * 4,
+    .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for USART_Task */
 osThreadId_t USART_TaskHandle;
 const osThreadAttr_t USART_Task_attributes = {
     .name = "USART_Task",
-    .stack_size = 1024 * 4,
+    .stack_size = 512 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for Gripper_State */
@@ -100,6 +101,19 @@ void Gripper_Task_Function(void *argument);
 void USART_Task_Function(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+
+/* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+  printf("Stack overflow in task %s\r\n", pcTaskName);
+  /* Run time stack overflow checking is performed if
+  configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+  called if a stack overflow is detected. */
+}
+/* USER CODE END 4 */
 
 /**
  * @brief  FreeRTOS initialization
@@ -190,6 +204,11 @@ void Motor_Task_Function(void *argument)
   /* Infinite loop */
   for (;;)
   {
+#if DEBUG_OS == 1
+    osMutexAcquire(Print_MutexHandle, osWaitForever);
+    printf("Motor_Task running\r\n");
+    osMutexRelease(Print_MutexHandle);
+#endif
     MotorX.Encoder = Read_Encoder(3);
     MotorY.Encoder = Read_Encoder(4);
     MotorX.Position += MotorX.Encoder;
@@ -227,8 +246,16 @@ void Motor_Task_Function(void *argument)
 /* USER CODE END Header_Gripper_Task_Function */
 void Gripper_Task_Function(void *argument)
 {
+  /* USER CODE BEGIN Gripper_Task_Function */
+  /* Infinite loop */
+
   for (;;)
   {
+#if DEBUG_OS == 1
+    osMutexAcquire(Print_MutexHandle, osWaitForever);
+    printf("Gripper_Task running\r\n");
+    osMutexRelease(Print_MutexHandle);
+#endif
     if (osMutexAcquire(Gripper_StateHandle, 0) == osOK)
     {
 
@@ -347,6 +374,11 @@ void USART_Task_Function(void *argument)
   /* Infinite loop */
   for (;;)
   {
+#if DEBUG_OS == 1
+    osMutexAcquire(Print_MutexHandle, osWaitForever);
+    printf("USART_Task running\r\n");
+    osMutexRelease(Print_MutexHandle);
+#endif
     Usart1Task_Run();
     osDelay(1);
   }
