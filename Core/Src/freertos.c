@@ -36,6 +36,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
+#define DEBUG_GRIPPER 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -235,9 +236,11 @@ void Gripper_Task_Function(void *argument)
       {
       case GRIPPER_STATE_MOVE_TO_GRAB:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_MOVE_TO_GRAB running\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = Target_X;
@@ -248,9 +251,11 @@ void Gripper_Task_Function(void *argument)
       }
       case GRIPPER_STATE_CLAMP:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_CLAMP running\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         MotorX.mode = MODE_STOP;
         MotorY.mode = MODE_STOP;
         Servo1(60);
@@ -266,9 +271,11 @@ void Gripper_Task_Function(void *argument)
 
       case GRIPPER_STATE_MOVE_TO_RELEASE:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_MOVE_TO_RELEASE running\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = 71;
@@ -280,9 +287,11 @@ void Gripper_Task_Function(void *argument)
 
       case GRIPPER_STATE_RELEASE:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_RELEASE running\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         Servo1(0);
         osDelay(1000);
         Servo2(180);
@@ -292,9 +301,11 @@ void Gripper_Task_Function(void *argument)
       }
       case GRIPPER_STATE_RESET:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_RESET running\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         MotorX.mode = MODE_RESET;
         MotorY.mode = MODE_RESET;
         osDelay(2000);
@@ -305,9 +316,11 @@ void Gripper_Task_Function(void *argument)
       }
       case GRIPPER_STATE_STOP:
       {
+#if DEBUG_GRIPPER
         osMutexAcquire(Print_MutexHandle, osWaitForever);
         printf("GRIPPER_STATE_STOP\r\n");
         osMutexRelease(Print_MutexHandle);
+#endif
         (void)0;
         osDelay(500);
       }
