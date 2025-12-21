@@ -248,7 +248,6 @@ void Gripper_Task_Function(void *argument)
 {
   /* USER CODE BEGIN Gripper_Task_Function */
   /* Infinite loop */
-
   for (;;)
   {
 #if DEBUG_OS == 1
@@ -272,8 +271,8 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
-        osDelay(2000);
-        gripper_state = GRIPPER_STATE_CLAMP;
+        if (my_abs(MotorX.prev_error) < 5 && my_abs(MotorY.prev_error) < 5)
+          gripper_state = GRIPPER_STATE_CLAMP;
         break;
       }
       case GRIPPER_STATE_CLAMP:
@@ -288,7 +287,6 @@ void Gripper_Task_Function(void *argument)
         Servo1(60);
         Servo2(180);
         osDelay(1000);
-
         Servo1(60);
         Servo2(150);
         osDelay(1000);
@@ -307,11 +305,10 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = 71;
         MotorY.Target_P = 0;
-        gripper_state = GRIPPER_STATE_RESET;
-        osDelay(2000);
+        if (my_abs(MotorX.prev_error) < 5 && my_abs(MotorY.prev_error) < 5)
+          gripper_state = GRIPPER_STATE_RELEASE;
         break;
       }
-
       case GRIPPER_STATE_RELEASE:
       {
 #if DEBUG_GRIPPER
