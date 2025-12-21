@@ -62,7 +62,8 @@ void usart1_Transmit_test()
 {
     int i0 = 0;
     uint8_t init_msg[] = "UART Init OK\r\n";
-    HAL_UART_Transmit(&huart1, init_msg, sizeof(init_msg) - 1, 100);
+    HAL_UART_Transmit_DMA(&huart1, init_msg, sizeof(init_msg) - 1);
+    // HAL_UART_Transmit(&huart1, init_msg, sizeof(init_msg) - 1, 100);
     printf("this is printf \r\n");
     if (i0++ == 1000)
         i0 = 0;
@@ -119,17 +120,14 @@ void motor_openloop_test()
 
 void motor_position_loop_test()
 {
-    MotorX.Target_P = 10000;
-    MotorY.Target_P = 10000;
-    HAL_Delay(5000);
-    MotorX.Target_P = 0;
-    MotorY.Target_P = 0;
-    HAL_Delay(5000);
-    MotorX.Target_P = -10000;
-    MotorY.Target_P = -10000;
-    HAL_Delay(5000);
-    MotorX.Target_P = 0;
-    MotorY.Target_P = 0;
-    HAL_Delay(5000);
+//		MotorX.Target_P = Num_Encoder_Cnt(1,13,30); // 旋转一圈
+//		HAL_Delay(5000);
+//		MotorX.Target_P = Num_Encoder_Cnt(0.5,13,30);
+		MotorX.Target_P = 330;
+		HAL_Delay(6000);
+        MotorX.Target_P = 80;
+		HAL_Delay(4000);		
+		MotorX.Target_P = 330;
+		HAL_Delay(4000);
+		MotorX.Target_P = 500;
 }
-
