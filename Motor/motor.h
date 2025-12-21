@@ -29,6 +29,7 @@ typedef struct
 	float Pos_KP;		   // 位置环比例
 	float Pos_KI;		   // 位置环积分
 	float Pos_KD;		   // 位置环微分
+	float pos_error;	   // 位置环当前误差
 	float pos_prev_error;  // 位置环上一次误差
 	float pos_integral;	   // 位置环积分值
 	float MaxSpeed;		   // 位置环输出到速度环的最大速度限幅

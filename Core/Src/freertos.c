@@ -271,7 +271,7 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
-        if (my_abs(MotorX.prev_error) < 5 && my_abs(MotorY.prev_error) < 5)
+        if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
           gripper_state = GRIPPER_STATE_CLAMP;
         break;
       }
@@ -305,7 +305,7 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = 71;
         MotorY.Target_P = 0;
-        if (my_abs(MotorX.prev_error) < 5 && my_abs(MotorY.prev_error) < 5)
+        if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
           gripper_state = GRIPPER_STATE_RELEASE;
         break;
       }

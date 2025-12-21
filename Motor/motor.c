@@ -3,31 +3,6 @@
 motor MotorX, MotorY;
 uint16_t Target_X, Target_Y;
 
-// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-// {
-// 	if (htim->Instance == TIM6) // 200hz定时中断
-// 	{
-// 		/* 读取编码器（增量） */
-// 		MotorX.Encoder = -Read_Encoder(3) * 360.0 * 0.4375 / (13 * 30); // 读取编码器增量 参数为特调
-// 		MotorY.Encoder = Read_Encoder(4) * 360.0 * 0.3987 / (13 * 30);
-// 		/* 累加位置（使用编码器增量累加） */
-// 		MotorX.Position += MotorX.Encoder;
-// 		MotorY.Position += MotorY.Encoder;
-// 		// printf("%f,%f,%f\r\n",MotorX.Position,MotorX.Target_P,MotorX.Motor);
-
-// 		/* 默认保留速度单环调用：如果需要位置-速度双环，可先在此处计算外环
-// 		   然后将 mode 改为 MODE_POSITION_DOUBLE 或调用 Incremental_PID 时传入不同模式 */
-// 		// Incremental_PID(&MotorX);
-// 		// Incremental_PID(&MotorY);
-// 		Incremental_PID(&MotorX);
-// 		Incremental_PID(&MotorY);
-// 		// Incremental_PID(&MotorX);
-// 		// Incremental_PID(&MotorY);
-// 		/* 更新 PWM 输出 */
-// 		Set_Pwm(&MotorX, &MotorY);
-// 	}
-// }
-
 /**
  * @brief Initialize the motor control peripherals and parameters
  *
@@ -136,21 +111,21 @@ void Incremental_PID(motor *_Motor)
 	if (_Motor->mode == MODE_POSITION_SINGLE)
 	{
 		float encoder_position_target = _Motor->Target_P * 13 * 30 / 360;
-		float pos_err = _Motor->Target_P - _Motor->Position;
-		_Motor->pos_integral += pos_err;
-		float pos_deriv = pos_err - _Motor->pos_prev_error;
-		float out = _Motor->Pos_KP * pos_err + _Motor->Pos_KI * _Motor->pos_integral + _Motor->Pos_KD * pos_deriv;
+		_Motor->pos_error = _Motor->Target_P - _Motor->Position;
+		_Motor->pos_integral += _Motor->pos_error;
+		float pos_deriv = _Motor->pos_error - _Motor->pos_prev_error;
+		float out = _Motor->Pos_KP * _Motor->pos_error + _Motor->Pos_KI * _Motor->pos_integral + _Motor->Pos_KD * pos_deriv;
 		if (out > output_limit)
 		{
 			out = output_limit;
-			_Motor->pos_integral -= pos_err; /* anti-windup */
+			_Motor->pos_integral -= _Motor->pos_error; /* anti-windup */
 		}
 		if (out < -output_limit)
 		{
 			out = -output_limit;
-			_Motor->pos_integral -= pos_err;
+			_Motor->pos_integral -= _Motor->pos_error;
 		}
-		_Motor->pos_prev_error = pos_err;
+		_Motor->pos_prev_error = _Motor->pos_error;
 		_Motor->Motor = out;
 		return;
 	}
@@ -158,21 +133,21 @@ void Incremental_PID(motor *_Motor)
 	/* 若为双环位置控制，先计算位置环输出速度命令并限幅 */
 	if (_Motor->mode == MODE_POSITION_DOUBLE)
 	{
-		float pos_err = _Motor->Target_P - _Motor->Position;
-		_Motor->pos_integral += pos_err;
-		float pos_deriv = pos_err - _Motor->pos_prev_error;
-		float v_cmd = _Motor->Pos_KP * pos_err + _Motor->Pos_KI * _Motor->pos_integral + _Motor->Pos_KD * pos_deriv;
+		_Motor->pos_error = _Motor->Target_P - _Motor->Position;
+		_Motor->pos_integral += _Motor->pos_error;
+		float pos_deriv = _Motor->pos_error - _Motor->pos_prev_error;
+		float v_cmd = _Motor->Pos_KP * _Motor->pos_error + _Motor->Pos_KI * _Motor->pos_integral + _Motor->Pos_KD * pos_deriv;
 		if (v_cmd > _Motor->MaxSpeed)
 		{
 			v_cmd = _Motor->MaxSpeed;
-			_Motor->pos_integral -= pos_err; /* anti-windup */
+			_Motor->pos_integral -= _Motor->pos_error; /* anti-windup */
 		}
 		if (v_cmd < -_Motor->MaxSpeed)
 		{
 			v_cmd = -_Motor->MaxSpeed;
-			_Motor->pos_integral -= pos_err;
+			_Motor->pos_integral -= _Motor->pos_error;
 		}
-		_Motor->pos_prev_error = pos_err;
+		_Motor->pos_prev_error = _Motor->pos_error;
 		_Motor->Target_V = v_cmd; /* 外环把速度指令下发给内环 */
 	}
 
