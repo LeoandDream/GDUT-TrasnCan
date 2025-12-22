@@ -287,11 +287,15 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_STOP;
         Servo1(60);
         Servo2(180);
-        osDelay(1000);
+        osDelay(500);
         Servo1(60);
         Servo2(150);
-        osDelay(1000);
+        osDelay(500);
         Servo1_SmoothMove(60, 0, 10, 50);
+
+        Servo2(180);
+        osDelay(500);
+
         gripper_state = GRIPPER_STATE_MOVE_TO_RELEASE;
         break;
       }
