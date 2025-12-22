@@ -13,8 +13,9 @@ uint8_t host1_rx_buf[FRAME_MAX_LEN] = {0};
 uint16_t host1_rx_len;
 FrameData_t host1_recv_frame = {0};
 uint8_t host1_parse_result = 0;
-int host1_ui = 0;
 volatile uint8_t host1_rx_data_ready = 0;
+uint16_t Target_X, Target_Y;
+Trash_type Target_box;
 
 uint8_t CalculateChecksum(uint8_t *data, uint16_t len)
 {
@@ -50,8 +51,6 @@ uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *f
     frame->header[0] = 0xAA;
     frame->header[1] = 0xBB;
     frame->checksum = 0;
-    if (host1_ui++ == 100)
-        host1_ui = 0;
     return 0;
 }
 void USART1_IRQHandler(void)
@@ -141,7 +140,6 @@ void Usart1Task_Run(void)
         osMutexAcquire(Gripper_StateHandle, osWaitForever);
         uint8_t can_process = (gripper_state == GRIPPER_STATE_STOP);
         osMutexRelease(Gripper_StateHandle);
-
         if (can_process)
         {
             host1_parse_result =
@@ -151,7 +149,26 @@ void Usart1Task_Run(void)
             {
                 Target_X = host1_recv_frame.obj.x;
                 Target_Y = host1_recv_frame.obj.y;
-
+                switch (host1_recv_frame.obj.type)
+                {
+                case 0:
+                case 1:
+                    Target_box = Hazardous;
+                    break;
+                case 2:
+                case 3:
+                case 7:
+                    Target_box = Kitchen;
+                    break;
+                case 4:
+                case 8:
+                    Target_box = Recyclable;
+                    break;
+                case 5:
+                case 6:
+                    Target_box = Other;
+                    break;
+                }
                 osMutexAcquire(Gripper_StateHandle, osWaitForever);
                 gripper_state = GRIPPER_STATE_MOVE_TO_GRAB;
                 osMutexRelease(Gripper_StateHandle);

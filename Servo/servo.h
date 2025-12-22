@@ -12,5 +12,6 @@ int angle_to_pwm_180(float angle);
 void Servo1(int degree);
 void Servo2(int degree);
 void Servo3(int degree);
+void Servo1_SmoothMove(int from, int to, int step, int delay_ms);
 
 #endif

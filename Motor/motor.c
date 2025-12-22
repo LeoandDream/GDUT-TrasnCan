@@ -1,7 +1,7 @@
 #include "motor.h"
 
 motor MotorX, MotorY;
-uint16_t Target_X, Target_Y;
+
 
 /**
  * @brief Initialize the motor control peripherals and parameters
@@ -191,24 +191,4 @@ int Read_Encoder(int TIMX)
 		Encoder_TIM = 0;
 	}
 	return Encoder_TIM;
-}
-
-/**************************************************************************
-功能：计算转数对应编码器脉冲数  （保证pid输入参数为脉冲，应用不同电机时不用再调pid参数）
-输入：num：转数；ppr：码盘数；ratio:减速比
-返回值：电机脉冲数
-**************************************************************************/
-long Num_Encoder_Cnt(float num, uint16_t ppr, float ratio)
-{
-	return (num * ratio * ppr); /*单倍频 */
-}
-
-/**************************************************************************
-功能：计算转速对应编码器脉冲数
-输入：encoder_cnt：脉冲数；ppr：码盘数；ratio:减速比；cnt_time：计数时间（ms）
-返回值：电机脉冲数
-**************************************************************************/
-long Rpm_Encoder_Cnt(float rpm, uint16_t ppr, uint16_t ratio, uint16_t cnt_time)
-{
-	return (rpm * ratio * ppr) / (60 * 1000 / cnt_time); /*单倍频 */
 }

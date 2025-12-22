@@ -36,8 +36,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
-#define DEBUG_GRIPPER 1
+#define DEBUG_GRIPPER 0
 #define DEBUG_OS 0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -290,6 +291,7 @@ void Gripper_Task_Function(void *argument)
         Servo1(60);
         Servo2(150);
         osDelay(1000);
+        Servo1_SmoothMove(60, 0, 10, 50);
         gripper_state = GRIPPER_STATE_MOVE_TO_RELEASE;
         break;
       }
@@ -303,8 +305,29 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
-        MotorX.Target_P = 71;
-        MotorY.Target_P = 0;
+        switch (Target_box)
+        {
+        case Hazardous:
+          MotorX.Target_P = 71;
+          MotorY.Target_P = 0;
+          break;
+        case Kitchen:
+          MotorX.Target_P = 71;
+          MotorY.Target_P = -71;
+          break;
+        case Recyclable:
+          MotorX.Target_P = 0;
+          MotorY.Target_P = -71;
+          break;
+        case Other:
+          MotorX.Target_P = -71;
+          MotorY.Target_P = -71;
+          break;
+        default:
+          MotorX.Target_P = 71;
+          MotorY.Target_P = 0;
+        }
+
         if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
           gripper_state = GRIPPER_STATE_RELEASE;
         break;
@@ -316,10 +339,8 @@ void Gripper_Task_Function(void *argument)
         printf("GRIPPER_STATE_RELEASE running\r\n");
         osMutexRelease(Print_MutexHandle);
 #endif
-        Servo1(0);
-        osDelay(1000);
-        Servo2(180);
-        osDelay(1000);
+        Servo1(60);
+        osDelay(500);
         gripper_state = GRIPPER_STATE_RESET;
         break;
       }
