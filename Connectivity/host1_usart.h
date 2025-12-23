@@ -18,12 +18,12 @@ typedef struct
 
 typedef enum
 {
-    GRIPPER_STATE_CLAMP,           // 夹取
-    GRIPPER_STATE_RELEASE,         // 释放
-    GRIPPER_STATE_MOVE_TO_GRAB,    // 抓取阶段移动
-    GRIPPER_STATE_MOVE_TO_RELEASE, // 释放阶段移动
-    GRIPPER_STATE_RESET,           // 复位
-    GRIPPER_STATE_STOP             // 停机
+    GRIPPER_STATE_CLAMP=1,           // 夹取
+    GRIPPER_STATE_RELEASE=2,         // 释放
+    GRIPPER_STATE_MOVE_TO_GRAB=3,    // 抓取阶段移动
+    GRIPPER_STATE_MOVE_TO_RELEASE=4, // 释放阶段移动
+    GRIPPER_STATE_RESET=5,           // 复位
+    GRIPPER_STATE_STOP=0,             // 停机
 } Gripper_State;
 
 #define FRAME_MAX_LEN 10

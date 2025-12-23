@@ -36,7 +36,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
-#define DEBUG_GRIPPER 1
+#define DEBUG_GRIPPER 0
 #define DEBUG_OS 0
 /* USER CODE END PD */
 
@@ -99,6 +99,7 @@ void StartDefaultTask(void *argument);
 void Motor_Task_Function(void *argument);
 void Gripper_Task_Function(void *argument);
 void USART_Task_Function(void *argument);
+
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -209,18 +210,18 @@ void Motor_Task_Function(void *argument)
     printf("Motor_Task running\r\n");
     osMutexRelease(Print_MutexHandle);
 #endif
-    MotorX.Encoder = Read_Encoder(3);
-    MotorY.Encoder = Read_Encoder(4);
+    MotorX.Encoder = -Read_Encoder(3)* 360.0 * 0.2714 / (13 * 30);//0.2714,0.4375
+    MotorY.Encoder = -Read_Encoder(4)* 360.0 * 0.2595 / (13 * 30);//0.2595,0.3987
     MotorX.Position += MotorX.Encoder;
     MotorY.Position += MotorY.Encoder;
 
     if (MotorX.mode == MODE_RESET)
-      MotorX.Motor = 5000;
+      MotorX.Motor = -8000;
     else
       Incremental_PID(&MotorX);
 
     if (MotorY.mode == MODE_RESET)
-      MotorY.Motor = 5000;
+      MotorY.Motor = -9000;
     else
       Incremental_PID(&MotorY);
 
@@ -269,10 +270,17 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
+				
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
+				
+//					osDelay(3000);
+//					gripper_state = GRIPPER_STATE_CLAMP;
         if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
-          gripper_state = GRIPPER_STATE_CLAMP;
+				{
+				osDelay(4000);
+				gripper_state = GRIPPER_STATE_CLAMP;
+				}
         break;
       }
       case GRIPPER_STATE_CLAMP:
@@ -288,8 +296,13 @@ void Gripper_Task_Function(void *argument)
         Servo2(180);
         osDelay(1000);
         Servo1(60);
-        Servo2(150);
-        osDelay(1000);
+        Servo2(140);
+        osDelay(500);
+				
+				Servo1_SmoothMove(60, 0, 10, 100);
+				osDelay(1000);
+        Servo2(180);
+        osDelay(500);
         gripper_state = GRIPPER_STATE_MOVE_TO_RELEASE;
         break;
       }
@@ -303,10 +316,17 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
-        MotorX.Target_P = 71;
-        MotorY.Target_P = 0;
-        if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
-          gripper_state = GRIPPER_STATE_RELEASE;
+        MotorX.Target_P = 125;
+        MotorY.Target_P = 410;
+				
+				
+//				osDelay(2000);
+//				gripper_state = GRIPPER_STATE_RELEASE;
+				if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
+				{
+				osDelay(2000);
+				gripper_state = GRIPPER_STATE_RELEASE;
+				}
         break;
       }
       case GRIPPER_STATE_RELEASE:
@@ -317,9 +337,11 @@ void Gripper_Task_Function(void *argument)
         osMutexRelease(Print_MutexHandle);
 #endif
         Servo1(0);
-        osDelay(1000);
-        Servo2(180);
-        osDelay(1000);
+				Servo2(180);
+        osDelay(500);
+				Servo1(60);
+				Servo2(180);
+				osDelay(500);
         gripper_state = GRIPPER_STATE_RESET;
         break;
       }
@@ -330,9 +352,16 @@ void Gripper_Task_Function(void *argument)
         printf("GRIPPER_STATE_RESET running\r\n");
         osMutexRelease(Print_MutexHandle);
 #endif
+				
+        MotorX.Target_P = 95;
+        MotorY.Target_P = 115;
+				osDelay(2500);
         MotorX.mode = MODE_RESET;
         MotorY.mode = MODE_RESET;
-        osDelay(2000);
+				
+        osDelay(1000);
+				MotorX.Position=95;
+				MotorY.Position=115;
         MotorX.mode = MODE_STOP;
         MotorY.mode = MODE_STOP;
         gripper_state = GRIPPER_STATE_STOP;
@@ -377,7 +406,14 @@ void USART_Task_Function(void *argument)
     osMutexRelease(Print_MutexHandle);
 #endif
     Usart1Task_Run();
-    osDelay(1);
+		osMutexAcquire(Print_MutexHandle, osWaitForever);
+//    if (gripper_state != GRIPPER_STATE_STOP)
+//      printf("%d", 0x00);
+//    else
+//      printf("%d", 0x01);
+		//printf("%d", 0x01);
+    osMutexRelease(Print_MutexHandle);
+    osDelay(10000);
   }
   /* USER CODE END USART_Task_Function */
 }

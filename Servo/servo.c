@@ -44,6 +44,37 @@ int angle_to_pwm_180(float angle)
 }
 
 /**
+ * @brief Servo1 平滑离散动作
+ * @param from 起始角度
+ * @param to 目标角度
+ * @param step 每步角度
+ * @param delay_ms 每步延时ms
+ */
+void Servo1_SmoothMove(int from, int to, int step, int delay_ms)
+{
+	if (step <= 0)
+		step = 1;
+	if (from < to)
+	{
+		for (int pos = from; pos <= to; pos += step)
+		{
+			Servo1(pos);
+			osDelay(delay_ms);
+		}
+		Servo1(to); // 保证最终到达
+	}
+	else
+	{
+		for (int pos = from; pos >= to; pos -= step)
+		{
+			Servo1(pos);
+			osDelay(delay_ms);
+		}
+		Servo1(to);
+	}
+}
+
+/**
  * @brief Set servo 1 to specified angle
  * @param degree Angle in degrees (0 to 180)
  */

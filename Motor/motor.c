@@ -16,13 +16,9 @@ void MotorInit()
 	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
-	MotorX.Pos_KP = 100.0; // 800.0;
-	MotorX.Pos_KI = 1.0;   // 10.0; // 增量式PI的KI应比位置式小
-	MotorX.Pos_KD = 0.0;   // 初始微分系数设为0
-
-	MotorY.Pos_KP = 100.0;
-	MotorY.Pos_KI = 1.0;
-	MotorY.Pos_KD = 0.0;
+	MotorX.Vel_KP = 800.0;
+	MotorX.Vel_KI = 10.0;
+	MotorX.Vel_KD = 0.0;
 
 	MotorY.Vel_KP = 800.0;
 	MotorY.Vel_KI = 10.0;
@@ -36,21 +32,21 @@ void MotorInit()
 	MotorY.prev_prev_error = 0;
 	MotorY.prev_output = 0;
 
-	MotorX.Position = 71; // 摄像头x初始位置设为71
-	MotorX.Pos_KP = 100.0f;
-	MotorX.Pos_KI = 0.1f;
+	MotorX.Position = 95; // 摄像头x初始位置设为71 120
+	MotorX.Pos_KP = 180.0f;
+	MotorX.Pos_KI = 0.8f;
 	MotorX.Pos_KD = 0.0f;
 	MotorX.pos_prev_error = 0;
 	MotorX.pos_integral = 0;
-	MotorX.MaxSpeed = 3000.0f; // 单位置环时需要调的值为output_limit
+	MotorX.MaxSpeed = 6000.0f; // 单位置环时需要调的值为output_limit
 
-	MotorY.Position = 0;
-	MotorY.Pos_KP = 100.0f;
-	MotorY.Pos_KI = 0.1f;
+	MotorY.Position = 115; //145
+	MotorY.Pos_KP = 750.0f;
+	MotorY.Pos_KI = 5.0f;
 	MotorY.Pos_KD = 0.0f;
 	MotorY.pos_prev_error = 0;
 	MotorY.pos_integral = 0;
-	MotorY.MaxSpeed = 3000.0f;
+	MotorY.MaxSpeed = 6000.0f;
 }
 
 /**
@@ -106,7 +102,7 @@ void Set_Pwm(motor *Motor_X, motor *Motor_Y)
  */
 void Incremental_PID(motor *_Motor)
 {
-	const float output_limit = 15000.0f;
+	const float output_limit = 8000.0f;
 	/* 位置单环：直接用位置 PID 输出 PWM */
 	if (_Motor->mode == MODE_POSITION_SINGLE)
 	{
