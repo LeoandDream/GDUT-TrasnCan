@@ -18,13 +18,21 @@ typedef struct
 
 typedef enum
 {
-    GRIPPER_STATE_CLAMP=1,           // 夹取
-    GRIPPER_STATE_RELEASE=2,         // 释放
-    GRIPPER_STATE_MOVE_TO_GRAB=3,    // 抓取阶段移动
-    GRIPPER_STATE_MOVE_TO_RELEASE=4, // 释放阶段移动
-    GRIPPER_STATE_RESET=5,           // 复位
-    GRIPPER_STATE_STOP=0,             // 停机
+    GRIPPER_STATE_CLAMP = 1,           // 夹取
+    GRIPPER_STATE_RELEASE = 2,         // 释放
+    GRIPPER_STATE_MOVE_TO_GRAB = 3,    // 抓取阶段移动
+    GRIPPER_STATE_MOVE_TO_RELEASE = 4, // 释放阶段移动
+    GRIPPER_STATE_RESET = 5,           // 复位
+    GRIPPER_STATE_STOP = 0             // 停机
 } Gripper_State;
+
+typedef enum
+{
+    Hazardous = 0,
+    Kitchen = 1,
+    Recyclable = 2,
+    Other = 3
+} Trash_type;
 
 #define FRAME_MAX_LEN 10
 
@@ -38,5 +46,7 @@ extern uint8_t host1_rx_buf[FRAME_MAX_LEN];
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern Gripper_State gripper_state;
+extern uint16_t Target_X, Target_Y;
+extern Trash_type Target_box;
 
 #endif

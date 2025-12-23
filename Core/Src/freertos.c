@@ -38,6 +38,7 @@
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
 #define DEBUG_GRIPPER 0
 #define DEBUG_OS 0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -294,7 +295,7 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_STOP;
         Servo1(60);
         Servo2(180);
-        osDelay(1000);
+        osDelay(500);
         Servo1(60);
         Servo2(140);
         osDelay(500);
@@ -318,7 +319,28 @@ void Gripper_Task_Function(void *argument)
         MotorY.mode = MODE_POSITION_SINGLE;
         MotorX.Target_P = 125;
         MotorY.Target_P = 410;
-				
+				 switch (Target_box)
+        {
+        case Hazardous:
+          MotorX.Target_P = 120;
+          MotorY.Target_P = 115;
+          break;
+        case Kitchen:
+          MotorX.Target_P = 420;
+          MotorY.Target_P = 115;
+          break;
+        case Recyclable:
+          MotorX.Target_P = 420;
+          MotorY.Target_P = 400;
+          break;
+        case Other:
+          MotorX.Target_P = 150;
+          MotorY.Target_P = 400;
+          break;
+        default:
+          MotorX.Target_P = 95;
+          MotorY.Target_P = 115;
+        }
 				
 //				osDelay(2000);
 //				gripper_state = GRIPPER_STATE_RELEASE;

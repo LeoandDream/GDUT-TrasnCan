@@ -832,11 +832,6 @@
               <FileType>5</FileType>
               <FilePath>..\Connectivity\host1_usart.h</FilePath>
             </File>
-            <File>
-              <FileName>host1_usart_task_demo.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Connectivity\host1_usart_task_demo.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

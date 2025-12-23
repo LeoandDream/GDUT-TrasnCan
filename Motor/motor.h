@@ -48,7 +48,7 @@ float my_abs(float x);
 long Num_Encoder_Cnt(float num, uint16_t ppr, float ratio);
 long Rpm_Encoder_Cnt(float rpm, uint16_t ppr, uint16_t ratio, uint16_t cnt_time);
 
-extern uint16_t Target_X, Target_Y;
+
 extern motor MotorX, MotorY;
 
 #endif

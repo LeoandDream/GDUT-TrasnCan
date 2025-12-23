@@ -85,8 +85,9 @@ void Servo1(int degree)
 
 /**
  * @brief Set servo 2 to specified angle
- * @param degree Angle in degrees (0 to 180)
- */
+ * @param degree Angle in degrees(0 to 180)
+ **/
+
 void Servo2(int degree)
 {
 	TIM1->CCR2 = angle_to_pwm_180(degree);
