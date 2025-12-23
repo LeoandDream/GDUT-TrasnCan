@@ -79,69 +79,69 @@ void Usart1Task_Run(void)
     osMutexRelease(Host1_Rx_MutexHandle);
     if (ready)
     {
-        // 拷贝数据到本地缓冲区
-        osMutexAcquire(Host1_Rx_MutexHandle, osWaitForever);
-        uint16_t rx_len_local = host1_rx_len;
-        uint8_t rx_buf_local[FRAME_MAX_LEN];
-        memcpy(rx_buf_local, host1_rx_buf, rx_len_local);
+        osMutexAcquire(Gripper_StateHandle, osWaitForever);
+        uint8_t can_process = (gripper_state == GRIPPER_STATE_STOP);
+        osMutexRelease(Gripper_StateHandle);
 
-        host1_rx_data_ready = 0;
-        host1_rx_len = 0;
-        osMutexRelease(Host1_Rx_MutexHandle);
+        if (can_process)
+        {
+            // 拷贝数据到本地缓冲区
+            osMutexAcquire(Host1_Rx_MutexHandle, osWaitForever);
+            uint16_t rx_len_local = host1_rx_len;
+            uint8_t rx_buf_local[FRAME_MAX_LEN];
+            memcpy(rx_buf_local, host1_rx_buf, rx_len_local);
+            host1_rx_data_ready = 0;
+            host1_rx_len = 0;
+            osMutexRelease(Host1_Rx_MutexHandle);
 
 #if DEBUG_USART1
-        {
-            osMutexAcquire(Host1_Rx_MutexHandle, osWaitForever);
-            const size_t OUTBUF_SIZE = 128;
-            char outbuf[OUTBUF_SIZE];
-            size_t outlen = 0;
-            int n = snprintf(outbuf + outlen, OUTBUF_SIZE - outlen,
-                             "[USART1] RX_LEN=%u\r\n", rx_len_local);
-            if (n > 0)
             {
-                outlen += (size_t)n;
-                HAL_UART_Transmit(&huart1,
-                                  (uint8_t *)outbuf,
-                                  (uint16_t)outlen,
-                                  100);
-            }
-            outlen = 0;
-            for (uint16_t i = 0; i < rx_len_local; i++)
-            {
-                if (OUTBUF_SIZE - outlen < 4)
+                osMutexAcquire(Host1_Rx_MutexHandle, osWaitForever);
+                const size_t OUTBUF_SIZE = 128;
+                char outbuf[OUTBUF_SIZE];
+                size_t outlen = 0;
+                int n = snprintf(outbuf + outlen, OUTBUF_SIZE - outlen,
+                                 "[USART1] RX_LEN=%u\r\n", rx_len_local);
+                if (n > 0)
+                {
+                    outlen += (size_t)n;
+                    HAL_UART_Transmit(&huart1,
+                                      (uint8_t *)outbuf,
+                                      (uint16_t)outlen,
+                                      100);
+                }
+                outlen = 0;
+                for (uint16_t i = 0; i < rx_len_local; i++)
+                {
+                    if (OUTBUF_SIZE - outlen < 4)
+                    {
+                        HAL_UART_Transmit(&huart1,
+                                          (uint8_t *)outbuf,
+                                          (uint16_t)outlen,
+                                          100);
+                        outlen = 0;
+                    }
+                    int m = snprintf(outbuf + outlen,
+                                     OUTBUF_SIZE - outlen,
+                                     "%02X ", rx_buf_local[i]);
+                    if (m > 0)
+                        outlen += (size_t)m;
+                }
+                if (outlen > 0)
                 {
                     HAL_UART_Transmit(&huart1,
                                       (uint8_t *)outbuf,
                                       (uint16_t)outlen,
                                       100);
-                    outlen = 0;
                 }
-                int m = snprintf(outbuf + outlen,
-                                 OUTBUF_SIZE - outlen,
-                                 "%02X ", rx_buf_local[i]);
-                if (m > 0)
-                    outlen += (size_t)m;
-            }
-            if (outlen > 0)
-            {
+                const char nl[] = "\r\n";
                 HAL_UART_Transmit(&huart1,
-                                  (uint8_t *)outbuf,
-                                  (uint16_t)outlen,
+                                  (uint8_t *)nl,
+                                  sizeof(nl) - 1,
                                   100);
+                osMutexRelease(Host1_Rx_MutexHandle);
             }
-            const char nl[] = "\r\n";
-            HAL_UART_Transmit(&huart1,
-                              (uint8_t *)nl,
-                              sizeof(nl) - 1,
-                              100);
-            osMutexRelease(Host1_Rx_MutexHandle);
-        }
 #endif
-        osMutexAcquire(Gripper_StateHandle, osWaitForever);
-        uint8_t can_process = (gripper_state == GRIPPER_STATE_STOP);
-        osMutexRelease(Gripper_StateHandle);
-        if (can_process)
-        {
             host1_parse_result =
                 UnpackFrame(rx_buf_local, rx_len_local, &host1_recv_frame);
 
@@ -180,9 +180,42 @@ void Usart1Task_Run(void)
                 osMutexRelease(Print_MutexHandle);
 #endif
             }
+            else
+            {
+#if DEBUG_USART1
+                osMutexAcquire(Print_MutexHandle, osWaitForever);
+                switch (host1_parse_result)
+                {
+                case 1:
+                {
+                    printf("帧头错误\r\n");
+                    break;
+                }
+                case 2:
+                {
+                    printf("长度错误\r\n");
+                    break;
+                }
+                case 3:
+                {
+                    printf("校验错误\r\n");
+                    break;
+                }
+                }
+                osMutexRelease(Print_MutexHandle);
+#endif
+            }
         }
-
-        // 无论解析成功与否都重启 DMA
+        // 处理完后重启 DMA
+        HAL_UART_Receive_DMA(&huart1, host1_rx_buf, FRAME_MAX_LEN);
+    }
+    else
+    {
+        // can_process!=1，丢弃旧包，直接重启DMA，不处理
+        osMutexAcquire(Host1_Rx_MutexHandle, osWaitForever);
+        host1_rx_data_ready = 0;
+        host1_rx_len = 0;
+        osMutexRelease(Host1_Rx_MutexHandle);
         HAL_UART_Receive_DMA(&huart1, host1_rx_buf, FRAME_MAX_LEN);
     }
 }
