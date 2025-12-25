@@ -36,7 +36,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 Gripper_State gripper_state = GRIPPER_STATE_STOP;
-#define DEBUG_GRIPPER 0
+#define DEBUG_GRIPPER 1
 #define DEBUG_OS 0
 
 /* USER CODE END PD */
@@ -274,8 +274,8 @@ void Gripper_Task_Function(void *argument)
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
 
-        //					osDelay(3000);
-        //					gripper_state = GRIPPER_STATE_CLAMP;
+        // osDelay(3000);
+        // gripper_state = GRIPPER_STATE_CLAMP;
         if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
         {
           osDelay(4000);
@@ -292,9 +292,14 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_STOP;
         MotorY.mode = MODE_STOP;
+        Servo3(0);
         Servo1(60);
         Servo2(180);
         osDelay(500);
+
+        Servo3(Target_angle);
+        osDelay(500);
+
         Servo1(60);
         Servo2(140);
         osDelay(500);
@@ -341,8 +346,8 @@ void Gripper_Task_Function(void *argument)
           MotorY.Target_P = 115;
         }
 
-        //				osDelay(2000);
-        //				gripper_state = GRIPPER_STATE_RELEASE;
+        // osDelay(2000);
+        // gripper_state = GRIPPER_STATE_RELEASE;
         if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
         {
           osDelay(2000);
@@ -360,6 +365,7 @@ void Gripper_Task_Function(void *argument)
         Servo1(0);
         Servo2(175);
         osDelay(500);
+        Servo3(0);
         Servo1(60);
         Servo2(175);
         osDelay(500);

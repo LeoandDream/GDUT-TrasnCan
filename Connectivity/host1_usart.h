@@ -4,15 +4,16 @@
 
 typedef struct
 {
-    uint8_t type; // 类别（1字节）
-    uint16_t x;   // 坐标x（2字节）
-    uint16_t y;   // 坐标y（2字节）
+    uint8_t type;  // 类别（1字节）
+    uint8_t angle; // 角度（1字节，0/90）
+    uint16_t x;    // 坐标x（2字节）
+    uint16_t y;    // 坐标y（2字节）
 } ObjectData_t;
 
 typedef struct
 {
     uint8_t header[2]; // 帧头 AA BB
-    ObjectData_t obj;  // 物体列表（最大255个）
+    ObjectData_t obj;  // 物体数据
     uint8_t checksum;  // 校验和
 } FrameData_t;
 
@@ -34,7 +35,7 @@ typedef enum
     Other = 3
 } Trash_type;
 
-#define FRAME_MAX_LEN 10
+#define FRAME_MAX_LEN 11
 
 // 函数声明
 uint8_t CalculateChecksum(uint8_t *data, uint16_t len); // 计算校验和
@@ -46,7 +47,7 @@ extern uint8_t host1_rx_buf[FRAME_MAX_LEN];
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern Gripper_State gripper_state;
-extern uint16_t Target_X, Target_Y;
+extern uint16_t Target_X, Target_Y, Target_angle;
 extern Trash_type Target_box;
 
 #endif

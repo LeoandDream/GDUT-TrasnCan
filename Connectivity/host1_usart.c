@@ -2,7 +2,7 @@
 
 #define DEBUG_USART1 0
 
-// 标准数据 AA BB 00 64 00 32 00 FB
+// 标准数据 AA BB 00 00 64 00 32 00 FB
 
 // 互斥锁句柄
 extern osMutexId_t Host1_Rx_MutexHandle;
@@ -29,8 +29,8 @@ uint8_t CalculateChecksum(uint8_t *data, uint16_t len)
 
 uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *frame)
 {
-    // 新协议：帧头(2) + class_id(1) + x_middle(2) + y_middle(2) + 校验和(1) = 8 字节
-    if (host1_rx_len != 8)
+    // 新协议：帧头(2) + class_id(1) + angle(1) + x_middle(2) + y_middle(2) + 校验和(1) = 9 字节
+    if (host1_rx_len != 9)
         return 2; // 长度错误
     if (host1_rx_buf[0] != 0xAA || host1_rx_buf[1] != 0xBB)
         return 1; // 帧头错误
@@ -40,6 +40,7 @@ uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *f
         return 3; // 校验和错误
     uint8_t idx = 2;
     frame->obj.type = host1_rx_buf[idx++];
+    frame->obj.angle = host1_rx_buf[idx++];
     uint8_t x_low = host1_rx_buf[idx++];
     uint8_t x_high = host1_rx_buf[idx++];
     uint16_t x_center = (uint16_t)x_low | ((uint16_t)x_high << 8);
@@ -149,6 +150,7 @@ void Usart1Task_Run(void)
             {
                 Target_X = host1_recv_frame.obj.x;
                 Target_Y = host1_recv_frame.obj.y;
+                Target_angle = host1_recv_frame.obj.angle;
                 switch (host1_recv_frame.obj.type)
                 {
                 case 0:
@@ -177,6 +179,8 @@ void Usart1Task_Run(void)
                 osMutexAcquire(Print_MutexHandle, osWaitForever);
                 printf("x_raw =%d\r\n", host1_recv_frame.obj.x);
                 printf("y_raw =%d\r\n", host1_recv_frame.obj.y);
+                printf("type  =%d\r\n", host1_recv_frame.obj.type);
+                printf("angle=%d\r\n", host1_recv_frame.obj.angle);
                 osMutexRelease(Print_MutexHandle);
 #endif
             }

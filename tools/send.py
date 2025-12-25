@@ -28,7 +28,15 @@ def build_packet(bboxes):
     x2_int, y2_int = int(max(0, x2)), int(max(0, y2))
     x_middle, y_middle = int((x1_int + x2_int)/2), int((y1_int + y2_int)/2)
     class_id_int = int(class_id)
-    obj_data = struct.pack('<BHH', class_id_int, x_middle, y_middle)
+    # 新增 angle 字段，假设通过 score 字段传递（或可自定义）
+    angle = 0
+    if hasattr(bbox, '__len__') and len(bbox) >= 6:
+        # 这里假设 score 字段为 0/90 角度，实际可根据需要调整
+        try:
+            angle = int(float(score))
+        except Exception:
+            angle = 0
+    obj_data = struct.pack('<BBHH', class_id_int, angle, x_middle, y_middle)
     packet.extend(obj_data)
     checksum = sum(packet) & 0xFF
     packet.extend(struct.pack('<B', checksum))

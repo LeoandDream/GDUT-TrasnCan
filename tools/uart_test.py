@@ -13,10 +13,11 @@ import time
 import random
 
 
-def build_frame(class_id, x_middle, y_middle):
+def build_frame(class_id, x_middle, y_middle, angle=0):
     frame = bytearray()
     frame.extend(struct.pack('<BB', 0xAA, 0xBB))
     frame.append(class_id & 0xFF)
+    frame.append(angle & 0xFF)
     frame.extend(struct.pack('<H', x_middle & 0xFFFF))
     frame.extend(struct.pack('<H', y_middle & 0xFFFF))
     checksum = sum(frame) & 0xFF
@@ -33,8 +34,11 @@ def build_error_frame(frame, error_type='checksum'):
         # 故意破坏帧头
         f[0] = 0x00
     elif error_type == 'length':
-        # 缩短帧长度
-        f = f[:-1]
+        # 缩短帧长度，去掉 angle 字段
+        if len(f) > 8:
+            f = f[:3] + f[4:]  # 去掉 angle 字段
+        else:
+            f = f[:-1]
     return f
 
 
@@ -63,19 +67,21 @@ def main():
                 class_id = random.randint(0, 10)
                 x = random.randint(0, 640)
                 y = random.randint(0, 480)
+                angle = random.choice([0, 90])
             else:
                 class_id = i % 10
                 x = 100 + (i * 5) % 540
                 y = 50 + (i * 3) % 400
-            frame = build_frame(class_id, x, y)
+                angle = 0
+            frame = build_frame(class_id, x, y, angle)
             is_error = random.random() < args.error_rate
             if is_error:
                 etype = random.choice(error_types)
                 frame_to_send = build_error_frame(frame, etype)
-                print(f'Send {i+1}/{args.count} [ERROR-{etype}]:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y}')
+                print(f'Send {i+1}/{args.count} [ERROR-{etype}]:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y} angle={angle}')
             else:
                 frame_to_send = frame
-                print(f'Send {i+1}/{args.count}:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y}')
+                print(f'Send {i+1}/{args.count}:', ' '.join(f'{b:02X}' for b in frame_to_send), f'class_id={class_id} x={x} y={y} angle={angle}')
             ser.write(frame_to_send)
             ser.flush()
             # 读取回显
