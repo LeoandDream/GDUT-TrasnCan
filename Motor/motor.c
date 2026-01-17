@@ -32,7 +32,7 @@ void MotorInit()
 	MotorY.prev_prev_error = 0;
 	MotorY.prev_output = 0;
 
-	MotorX.Position = 95; // 摄像头x初始位置设为71 120
+	MotorX.Position = 218; // 摄像头x初始位置设为71 120
 	MotorX.Pos_KP = 180.0f;
 	MotorX.Pos_KI = 0.8f;
 	MotorX.Pos_KD = 0.0f;
@@ -40,7 +40,7 @@ void MotorInit()
 	MotorX.pos_integral = 0;
 	MotorX.MaxSpeed = 6000.0f; // 单位置环时需要调的值为output_limit
 
-	MotorY.Position = 115; //145
+	MotorY.Position = 120; //145
 	MotorY.Pos_KP = 750.0f;
 	MotorY.Pos_KI = 5.0f;
 	MotorY.Pos_KD = 0.0f;
