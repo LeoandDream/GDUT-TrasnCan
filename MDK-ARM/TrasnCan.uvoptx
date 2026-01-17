@@ -235,6 +235,16 @@
           <WinNumber>1</WinNumber>
           <ItemText>host1_rx_buf</ItemText>
         </Ww>
+        <Ww>
+          <count>17</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>host1_recv_frame</ItemText>
+        </Ww>
+        <Ww>
+          <count>18</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>\\TrasnCan\../Motor/motor.c\MotorX.MaxSpeed</ItemText>
+        </Ww>
       </WatchWindow1>
       <MemoryWindow1>
         <Mm>
