@@ -226,8 +226,8 @@ void Motor_Task_Function(void *argument)
       osMutexRelease(Print_MutexHandle);
     }
 #endif
-    MotorX.Encoder = -Read_Encoder(3) * 360.0 * 0.2714 / (13 * 30); // 0.2714,0.4375
-    MotorY.Encoder = -Read_Encoder(4) * 360.0 * 0.2595 / (13 * 30); // 0.2595,0.3987
+    MotorX.Encoder = -Read_Encoder(3) * 360.0 * 0.23799 / (13 * 30); // 0.2714,0.4375
+    MotorY.Encoder = -Read_Encoder(4) * 360.0 * 0.24558 / (13 * 30); // 0.2595,0.3987
     MotorX.Position += MotorX.Encoder;
     MotorY.Position += MotorY.Encoder;
 
@@ -290,9 +290,9 @@ void Gripper_Task_Function(void *argument)
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
 
-        osDelay(3000);
-        gripper_state = GRIPPER_STATE_CLAMP;
-        if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
+        //         osDelay(3000);
+        //         gripper_state = GRIPPER_STATE_CLAMP;
+        if (my_abs(MotorX.pos_error) < 10 && my_abs(MotorY.pos_error) < 10)
         {
           osDelay(4000);
           gripper_state = GRIPPER_STATE_CLAMP;
@@ -308,22 +308,34 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_STOP;
         MotorY.mode = MODE_STOP;
-        Servo3(0);
-        Servo1(60);
-        Servo2(180);
-        osDelay(500);
+        int skip_servo = 0;
+        if ((MotorX.Target_P < 310 && MotorY.Target_P < 228) ||
+            (MotorX.Target_P < 321 && MotorY.Target_P > 322) ||
+            (MotorX.Target_P > 420 && MotorY.Target_P < 207) ||
+            (MotorX.Target_P > 420 && MotorY.Target_P > 308))
+        {
+          skip_servo = 1;
+        }
 
-        Servo3(Target_angle);
-        osDelay(500);
+        if (!skip_servo)
+        {
+          Servo3(0);
+          Servo1(70);
+          Servo2(170);
+          osDelay(500);
 
-        Servo1(60);
-        Servo2(140);
-        osDelay(500);
+          Servo3(Target_angle);
+          osDelay(500);
 
-        Servo1_SmoothMove(60, 0, 10, 100);
-        osDelay(1000);
-        Servo2(180);
-        osDelay(500);
+          Servo1(70);
+          Servo2(135);
+          osDelay(500);
+
+          Servo1_SmoothMove(70, 0, 10, 100);
+          osDelay(1000);
+          Servo2(170);
+          osDelay(500);
+        }
         gripper_state = GRIPPER_STATE_MOVE_TO_RELEASE;
         break;
       }
@@ -337,36 +349,36 @@ void Gripper_Task_Function(void *argument)
 #endif
         MotorX.mode = MODE_POSITION_SINGLE;
         MotorY.mode = MODE_POSITION_SINGLE;
-        MotorX.Target_P = 125;
-        MotorY.Target_P = 410;
+        //        MotorX.Target_P = 125;
+        //        MotorY.Target_P = 410;
         switch (Target_box)
         {
         case Hazardous:
-          MotorX.Target_P = 120;
-          MotorY.Target_P = 115;
+          MotorX.Target_P = 230;
+          MotorY.Target_P = 130;
           break;
         case Kitchen:
-          MotorX.Target_P = 420;
-          MotorY.Target_P = 115;
+          MotorX.Target_P = 495;
+          MotorY.Target_P = 130;
           break;
         case Recyclable:
-          MotorX.Target_P = 420;
-          MotorY.Target_P = 400;
+          MotorX.Target_P = 495;
+          MotorY.Target_P = 420;
           break;
         case Other:
-          MotorX.Target_P = 150;
-          MotorY.Target_P = 400;
+          MotorX.Target_P = 230;
+          MotorY.Target_P = 420;
           break;
         default:
-          MotorX.Target_P = 95;
-          MotorY.Target_P = 115;
+          MotorX.Target_P = 230;
+          MotorY.Target_P = 130;
         }
 
-        // osDelay(2000);
-        // gripper_state = GRIPPER_STATE_RELEASE;
-        if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
+        //         osDelay(2000);
+        //         gripper_state = GRIPPER_STATE_RELEASE;
+        if (my_abs(MotorX.pos_error) < 10 && my_abs(MotorY.pos_error) < 10)
         {
-          osDelay(2000);
+          osDelay(3000);
           gripper_state = GRIPPER_STATE_RELEASE;
         }
         break;
@@ -378,12 +390,13 @@ void Gripper_Task_Function(void *argument)
         printf("GRIPPER_STATE_RELEASE running\r\n");
         osMutexRelease(Print_MutexHandle);
 #endif
+
         Servo1(0);
-        Servo2(175);
+        Servo2(170);
         osDelay(500);
         Servo3(0);
-        Servo1(60);
-        Servo2(175);
+        Servo1(70);
+        Servo2(170);
         osDelay(500);
         gripper_state = GRIPPER_STATE_RESET;
         break;
@@ -396,15 +409,15 @@ void Gripper_Task_Function(void *argument)
         osMutexRelease(Print_MutexHandle);
 #endif
 
-        MotorX.Target_P = 95;
-        MotorY.Target_P = 115;
-        osDelay(2500);
+        MotorX.Target_P = 218;
+        MotorY.Target_P = 120;
+        osDelay(3500);
         MotorX.mode = MODE_RESET;
         MotorY.mode = MODE_RESET;
-        osDelay(1000);
+        osDelay(2000);
 
-        MotorX.Position = 95;
-        MotorY.Position = 115;
+        MotorX.Position = 218;
+        MotorY.Position = 120;
 
         MotorX.mode = MODE_STOP;
         MotorY.mode = MODE_STOP;
