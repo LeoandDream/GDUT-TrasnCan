@@ -35,8 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-Gripper_State gripper_state = GRIPPER_STATE_STOP;
-#define DEBUG_GRIPPER 1
+#define DEBUG_GRIPPER 0
 #define DEBUG_OS 0
 
 /* USER CODE END PD */
@@ -48,7 +47,9 @@ Gripper_State gripper_state = GRIPPER_STATE_STOP;
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+Gripper_State gripper_state = GRIPPER_STATE_STOP;
+Allow_Sort_State allow_to_sort_state = Allow_To_Sort;
+Sort_State sort_state = Is_Sorting;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -61,14 +62,14 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t Motor_TaskHandle;
 const osThreadAttr_t Motor_Task_attributes = {
     .name = "Motor_Task",
-    .stack_size = 256 * 4,
+    .stack_size = 512 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for Gripper_Task */
 osThreadId_t Gripper_TaskHandle;
 const osThreadAttr_t Gripper_Task_attributes = {
     .name = "Gripper_Task",
-    .stack_size = 256 * 4,
+    .stack_size = 512 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for USART_Task */
@@ -90,6 +91,10 @@ const osMutexAttr_t Host1_Rx_Mutex_attributes = {
 osMutexId_t Print_MutexHandle;
 const osMutexAttr_t Print_Mutex_attributes = {
     .name = "Print_Mutex"};
+/* Definitions for Host2_Rx_Mutex */
+osMutexId_t Host2_Rx_MutexHandle;
+const osMutexAttr_t Host2_Rx_Mutex_attributes = {
+    .name = "Host2_Rx_Mutex"};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -135,6 +140,9 @@ void MX_FREERTOS_Init(void)
 
   /* creation of Print_Mutex */
   Print_MutexHandle = osMutexNew(&Print_Mutex_attributes);
+
+  /* creation of Host2_Rx_Mutex */
+  Host2_Rx_MutexHandle = osMutexNew(&Host2_Rx_Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -202,13 +210,21 @@ void StartDefaultTask(void *argument)
 void Motor_Task_Function(void *argument)
 {
   /* USER CODE BEGIN Motor_Task_Function */
+#if DEBUG_OS == 1
+  uint16_t cnt = 0;
+#endif
   /* Infinite loop */
   for (;;)
   {
 #if DEBUG_OS == 1
-    osMutexAcquire(Print_MutexHandle, osWaitForever);
-    printf("Motor_Task running\r\n");
-    osMutexRelease(Print_MutexHandle);
+    cnt++;
+    if (cnt == 10)
+    {
+      cnt = 0;
+      osMutexAcquire(Print_MutexHandle, osWaitForever);
+      printf("Motor_Task running\r\n");
+      osMutexRelease(Print_MutexHandle);
+    }
 #endif
     MotorX.Encoder = -Read_Encoder(3) * 360.0 * 0.2714 / (13 * 30); // 0.2714,0.4375
     MotorY.Encoder = -Read_Encoder(4) * 360.0 * 0.2595 / (13 * 30); // 0.2595,0.3987
@@ -274,8 +290,8 @@ void Gripper_Task_Function(void *argument)
         MotorX.Target_P = Target_X;
         MotorY.Target_P = Target_Y;
 
-        // osDelay(3000);
-        // gripper_state = GRIPPER_STATE_CLAMP;
+        osDelay(3000);
+        gripper_state = GRIPPER_STATE_CLAMP;
         if (my_abs(MotorX.pos_error) < 5 && my_abs(MotorY.pos_error) < 5)
         {
           osDelay(4000);
@@ -433,7 +449,8 @@ void USART_Task_Function(void *argument)
     printf("USART_Task running\r\n");
     osMutexRelease(Print_MutexHandle);
 #endif
-    Usart1Task_Run();
+    // Usart1Task_Run();
+    // Usart2Task_Run();
     osDelay(1);
   }
   /* USER CODE END USART_Task_Function */

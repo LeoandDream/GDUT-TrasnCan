@@ -1,5 +1,7 @@
 #include "main.h"
 
+int i = 0, i0 = 0, i1 = 0;
+
 void main_test()
 {
     // MotorX.Target = 10;
@@ -60,10 +62,9 @@ void main_test()
 
 void usart1_Transmit_test()
 {
-    int i0 = 0;
-    uint8_t init_msg[] = "UART Init OK\r\n";
-    HAL_UART_Transmit_DMA(&huart1, init_msg, sizeof(init_msg) - 1);
-    // HAL_UART_Transmit(&huart1, init_msg, sizeof(init_msg) - 1, 100);
+    uint8_t init_msg1[] = "UART1 Init OK\r\n";
+    // HAL_UART_Transmit_DMA(&huart1, init_msg1, sizeof(init_msg1) - 1);
+    HAL_UART_Transmit(&huart1, init_msg1, sizeof(init_msg1) - 1, 100);
     printf("this is printf \r\n");
     if (i0++ == 1000)
         i0 = 0;
@@ -77,6 +78,26 @@ void usart1_Receive_test()
     {
         HAL_UART_Transmit(&huart1, Rx_Buff1, sizeof(Rx_Buff1), 100);
         printf("0\r\n");
+    }
+}
+
+void usart2_Transmit_test()
+{
+    // uint8_t init_msg2[] = "UART2 Init OK\r\n";
+    // // HAL_UART_Transmit_DMA(&huart2, init_msg2, sizeof(init_msg2) - 1);
+    // HAL_UART_Transmit(&huart2, init_msg2, sizeof(init_msg2) - 1, 100);
+    // if (i1++ == 1000)
+    //     i1 = 0;
+    Host2Usart_SendPacket(Sort_State_CMD, boxes[1]);
+    HAL_Delay(1000);
+}
+
+void usart2_Receive_test()
+{
+    uint8_t Rx_Buff2[1];
+    if (HAL_UART_Receive(&huart2, Rx_Buff2, sizeof(Rx_Buff2), 1000) == HAL_OK)
+    {
+        HAL_UART_Transmit(&huart2, Rx_Buff2, sizeof(Rx_Buff2), 100);
     }
 }
 
@@ -120,14 +141,14 @@ void motor_openloop_test()
 
 void motor_position_loop_test()
 {
-//		MotorX.Target_P = Num_Encoder_Cnt(1,13,30); // 旋转一圈
-//		HAL_Delay(5000);
-//		MotorX.Target_P = Num_Encoder_Cnt(0.5,13,30);
-		MotorX.Target_P = 330;
-		HAL_Delay(6000);
-        MotorX.Target_P = 80;
-		HAL_Delay(4000);		
-		MotorX.Target_P = 330;
-		HAL_Delay(4000);
-		MotorX.Target_P = 500;
+    //		MotorX.Target_P = Num_Encoder_Cnt(1,13,30); // 旋转一圈
+    //		HAL_Delay(5000);
+    //		MotorX.Target_P = Num_Encoder_Cnt(0.5,13,30);
+    MotorX.Target_P = 330;
+    HAL_Delay(6000);
+    MotorX.Target_P = 80;
+    HAL_Delay(4000);
+    MotorX.Target_P = 330;
+    HAL_Delay(4000);
+    MotorX.Target_P = 500;
 }

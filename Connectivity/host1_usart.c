@@ -1,9 +1,9 @@
-#include "main.h"
-
-#define DEBUG_USART1 0
+#include "host1_usart.h"
 
 // 标准数据 AA BB 00 00 64 00 32 00 FB
-
+#define FRAME1_LEN 9
+#define FRAME1_HEADER_0 0xAA
+#define FRAME1_HEADER_1 0xBB
 // 互斥锁句柄
 extern osMutexId_t Host1_Rx_MutexHandle;
 extern osMutexId_t Print_MutexHandle;
@@ -14,10 +14,11 @@ uint16_t host1_rx_len;
 FrameData_t host1_recv_frame = {0};
 uint8_t host1_parse_result = 0;
 volatile uint8_t host1_rx_data_ready = 0;
-uint16_t Target_X, Target_Y;
+uint16_t Target_X, Target_Y, Target_angle;
 Trash_type Target_box;
+uint8_t boxes[4] = {Hazardous, Kitchen, Recyclable, Other};
 
-uint8_t CalculateChecksum(uint8_t *data, uint16_t len)
+uint8_t CalculateChecksum1(uint8_t *data, uint16_t len)
 {
     uint16_t sum = 0;
     for (uint16_t i = 0; i < len; i++)
@@ -27,15 +28,15 @@ uint8_t CalculateChecksum(uint8_t *data, uint16_t len)
     return (uint8_t)(sum & 0xFF);
 }
 
-uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *frame)
+uint8_t UnpackFrame1(uint8_t *host1_rx_buf, uint16_t rx_len, FrameData_t *frame)
 {
     // 新协议：帧头(2) + class_id(1) + angle(1) + x_middle(2) + y_middle(2) + 校验和(1) = 9 字节
-    if (host1_rx_len != 9)
+    if (rx_len != FRAME1_LEN)
         return 2; // 长度错误
-    if (host1_rx_buf[0] != 0xAA || host1_rx_buf[1] != 0xBB)
+    if (host1_rx_buf[0] != FRAME1_HEADER_0 || host1_rx_buf[1] != FRAME1_HEADER_1)
         return 1; // 帧头错误
-    uint8_t calc_checksum = CalculateChecksum(host1_rx_buf, host1_rx_len - 1);
-    uint8_t frame_checksum = host1_rx_buf[host1_rx_len - 1];
+    uint8_t calc_checksum = CalculateChecksum1(host1_rx_buf, rx_len - 1);
+    uint8_t frame_checksum = host1_rx_buf[rx_len - 1];
     if (calc_checksum != frame_checksum)
         return 3; // 校验和错误
     uint8_t idx = 2;
@@ -49,27 +50,10 @@ uint8_t UnpackFrame(uint8_t *host1_rx_buf, uint16_t host1_rx_len, FrameData_t *f
     uint16_t y_center = (uint16_t)y_low | ((uint16_t)y_high << 8);
     frame->obj.x = x_center;
     frame->obj.y = y_center;
-    frame->header[0] = 0xAA;
-    frame->header[1] = 0xBB;
+    frame->header[0] = FRAME1_HEADER_0;
+    frame->header[1] = FRAME1_HEADER_1;
     frame->checksum = 0;
     return 0;
-}
-void USART1_IRQHandler(void)
-{
-    HAL_UART_IRQHandler(&huart1);
-    if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET)
-    {
-        __HAL_UART_CLEAR_IDLEFLAG(&huart1);
-        // 先读取DMA剩余计数（此时DMA仍在）
-        uint16_t dma_remain =
-            (uint16_t)__HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-        // 再停止DMA
-        HAL_DMA_Abort(&hdma_usart1_rx);
-        // 计算实际接收长度
-        host1_rx_len = FRAME_MAX_LEN - dma_remain;
-        // 通知任务
-        host1_rx_data_ready = 1;
-    }
 }
 
 void Usart1Task_Run(void)
@@ -144,7 +128,7 @@ void Usart1Task_Run(void)
             }
 #endif
             host1_parse_result =
-                UnpackFrame(rx_buf_local, rx_len_local, &host1_recv_frame);
+                UnpackFrame1(rx_buf_local, rx_len_local, &host1_recv_frame);
 
             if (host1_parse_result == 0)
             {
@@ -222,10 +206,4 @@ void Usart1Task_Run(void)
         osMutexRelease(Host1_Rx_MutexHandle);
         HAL_UART_Receive_DMA(&huart1, host1_rx_buf, FRAME_MAX_LEN);
     }
-}
-
-int fputc(int ch, FILE *f)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 1000);
-    return ch;
 }

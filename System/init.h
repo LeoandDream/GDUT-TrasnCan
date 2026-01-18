@@ -3,5 +3,5 @@
 #include "main.h"
 
 void init(void);
-
+void State_Init(void);
 #endif

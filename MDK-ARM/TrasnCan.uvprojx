@@ -833,6 +833,26 @@
               <FileType>5</FileType>
               <FilePath>..\Connectivity\host1_usart.h</FilePath>
             </File>
+            <File>
+              <FileName>host2_usart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Connectivity\host2_usart.c</FilePath>
+            </File>
+            <File>
+              <FileName>host2_usart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Connectivity\host2_usart.h</FilePath>
+            </File>
+            <File>
+              <FileName>my_usart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Connectivity\my_usart.c</FilePath>
+            </File>
+            <File>
+              <FileName>my_usart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Connectivity\my_usart.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

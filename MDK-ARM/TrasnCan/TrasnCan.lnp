@@ -29,6 +29,8 @@
 "trasncan\motor.o"
 "trasncan\servo.o"
 "trasncan\host1_usart.o"
+"trasncan\host2_usart.o"
+"trasncan\my_usart.o"
 "trasncan\test.o"
 "trasncan\init.o"
 "trasncan\croutine.o"

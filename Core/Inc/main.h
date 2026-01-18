@@ -38,6 +38,8 @@ extern "C" {
 #include "init.h"
 #include "dma.h"
 #include "host1_usart.h"
+#include "host2_usart.h"
+#include "my_usart.h"
 #include "usart.h"
 #include "test.h"
 #include "cmsis_os.h"
